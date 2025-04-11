@@ -1,0 +1,43 @@
+# 1. Виртуальное окружение
+venv/
+.env/
+.venv/
+
+# 2. Файлы Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+
+# 3. Базы данных и миграции (если SQLite)
+*.sqlite3
+*.db
+db.sqlite3
+
+# 4. Файлы IDE/редакторов
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store (для macOS)
+
+# 5. Статические файлы (если собираются автоматически)
+staticfiles/
+media/
+
+# 6. Конфиденциальные данные
+.env
+.env.local
+.env.dev
+.env.prod
+secrets.json
+config.yml
+
+# 7. Файлы зависимостей (если используете Pipenv/Poetry)
+Pipfile.lock
+poetry.l
