@@ -1,8 +1,7 @@
-# Импортируем необходимые модули
 from django import forms  # Базовый класс для форм
 from django.contrib.auth.forms import UserCreationForm  # Стандартная форма регистрации
 from django.contrib.auth.models import User  # Модель пользователя Django
-from .models import Profile  # Наша модель профиля
+from .models import Profile, Workout, Exercise # Наша модель профиля
 
 class SignUpForm(UserCreationForm):
     # Добавляем поле email (обязательное)
@@ -17,7 +16,7 @@ class SignUpForm(UserCreationForm):
         label='Дата рождения',
         required=False,  # Можно оставить пустым
         widget=forms.DateInput(attrs={'type': 'date'}),  # Календарь в HTML5
-        help_text='Формат: ГГГГ-ММ-ДД'
+        help_text='Формат: ММ-ДД-ГГГГ'
     )
     
     height = forms.FloatField(
@@ -54,16 +53,50 @@ class SignUpForm(UserCreationForm):
         return email
     '''
 
-    def save(self):
+    def save(self, commit = True):
         # Сохраняем пользователя (родительский метод)
         user = super().save(commit=False)  # Не сохраняем сразу в БД
         user.email = self.cleaned_data.get('email')  # Присваиваем email
         user.save()  # Сохраняем пользователя в БД
         
         # Создаём профиль и заполняем данные
-        profile = user.profile  # Профиль создаётся через сигнал
-        profile.birth_date = self.cleaned_data['birth_date']
-        profile.height = self.cleaned_data['height']
-        profile.weight = self.cleaned_data['weight']
-        profile.save()
+        if commit:
+            profile = user.profile  # Профиль создаётся через сигнал
+            profile.birth_date = self.cleaned_data['birth_date']
+            profile.height = self.cleaned_data['height']
+            profile.weight = self.cleaned_data['weight']
+            profile.save()
         return user  # Возвращаем созданного пользователя
+    
+class ExerciseForm(forms.ModelForm):
+    class Meta:
+        model = Exercise
+        fields = (
+            'name'
+        )
+
+    def save(self):
+        exercise = super().save(commit=False)
+        exercise.name = self.cleaned_data['name'].capitalize()
+        exercise.save()
+        return exercise
+    
+class WorkoutForm(forms.ModelForm):
+    class Meta:
+        model = Workout
+        fields = (
+            'name',
+            'date',
+            'exercises'
+        )
+    
+    def save(self, commit = True):
+        workout = super().save(commit=False)
+        workout.name = self.cleaned_data['name'].capitalize()
+        workout.date = self.cleaned_data['date']
+
+        if commit:
+            workout.save()
+            self.save_m2m() 
+
+        return workout
