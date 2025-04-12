@@ -47,7 +47,6 @@ class ExerciseSet(models.Model):
     reps = models.PositiveIntegerField(default=4)
     weight = models.FloatField(null=True, blank=True)
 
-
 # Автоматическое создание профиля при регистрации
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

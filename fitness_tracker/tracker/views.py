@@ -1,6 +1,6 @@
-from django.shortcuts import render, redirect  # Для рендеринга и перенаправления
-from django.contrib.auth import login  # Для автоматического входа после регистрации
-from .forms import SignUpForm  # Наша форма
+from django.shortcuts import render, redirect
+from django.contrib.auth import login
+from .forms import SignUpForm 
 from django.contrib.auth.decorators import login_required
 
 @login_required
