@@ -2,7 +2,10 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+import logging
+import coloredlogs
 
+coloredlogs.install(level="INFO")
 
 def main():
     """Run administrative tasks."""

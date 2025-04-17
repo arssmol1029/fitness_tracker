@@ -12,8 +12,16 @@ class Profile(models.Model):
     def __str__(self):
         return f"Профиль {self.user.username}"
 
+   
 class Exercise(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=100)
+    is_custom = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -21,10 +29,10 @@ class Exercise(models.Model):
 class Workout(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, default='тренировка')
-    exercices = models.ManyToManyField(
+    exercises = models.ManyToManyField(
         Exercise,
         blank=True,
-        through='WorkoutExercises',
+        through='tracker.WorkoutExercises',
         through_fields=('workout', 'exercise'),
     )
     date = models.DateField(null=True, blank=True)
@@ -32,16 +40,16 @@ class Workout(models.Model):
     def __str__(self):
         return self.name
 
-class WorkoutExercices(models.Model):
+class WorkoutExercises(models.Model):
     workout = models.ForeignKey(Workout, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     sets = models.PositiveIntegerField(default=4)
 
 class ExerciseSet(models.Model):
     workout_exercise = models.ForeignKey(
-        WorkoutExercices,
+        WorkoutExercises,
         on_delete=models.CASCADE,
-        related_name='sets',
+        related_name='exercise_sets',
     )
     set_number = models.PositiveIntegerField()
     reps = models.PositiveIntegerField(default=4)
