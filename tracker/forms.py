@@ -87,12 +87,6 @@ class WorkoutForm(forms.ModelForm):
         max_length=100,
     )
 
-    date = forms.DateField(
-        label='Дата',
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date'}),
-    )
-
     global_exercises = forms.ModelMultipleChoiceField(
         queryset=Exercise.objects.filter(is_custom=False),
         required=False,
@@ -109,7 +103,6 @@ class WorkoutForm(forms.ModelForm):
         model = Workout
         fields = (
             'name',
-            'date',
         )
 
     def __init__(self, *args, **kwargs):
@@ -124,7 +117,7 @@ class WorkoutForm(forms.ModelForm):
     def save(self, commit = True):
         workout = super().save(commit=False)
         workout.name = self.cleaned_data['name'].capitalize()
-        workout.date = self.cleaned_data['date']
+        workout.is_custom = True
         if self.user:
             workout.user = self.user
 

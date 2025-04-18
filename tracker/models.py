@@ -29,13 +29,13 @@ class Exercise(models.Model):
 class Workout(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, default='тренировка')
+    is_custom = models.BooleanField(default=True)
     exercises = models.ManyToManyField(
         Exercise,
         blank=True,
         through='tracker.WorkoutExercises',
         through_fields=('workout', 'exercise'),
     )
-    date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -55,7 +55,7 @@ class ExerciseSet(models.Model):
     reps = models.PositiveIntegerField(default=4)
     weight = models.FloatField(null=True, blank=True)
 
-# Автоматическое создание профиля при регистрации
+# Cоздание профиля при регистрации
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
