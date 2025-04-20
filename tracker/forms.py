@@ -114,12 +114,13 @@ class WorkoutForm(forms.ModelForm):
         else:
             self.fields['custom_exercises'].queryset = Exercise.objects.filter(is_custom=True, user = self.user)
     
-    def save(self, commit = True):
+    def save(self, commit = True, is_template = True):
         workout = super().save(commit=False)
         workout.name = self.cleaned_data['name'].capitalize()
-        workout.is_custom = True
+        workout.is_template = is_template
         if self.user:
             workout.user = self.user
+            workout.is_custom = True
 
         if commit:
             workout.save()

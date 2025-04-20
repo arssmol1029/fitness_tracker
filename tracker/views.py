@@ -3,15 +3,18 @@ from django.contrib.auth import login
 from .forms import SignUpForm, ExerciseForm, WorkoutForm
 from django.contrib.auth.decorators import login_required
 from .models import Workout
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.urls import reverse
 
 @login_required
 def mainPage(request):
     global_workouts = Workout.objects.filter(is_custom = False)
-    custom_workouts = Workout.objects.filter(user = request.user)
+    custom_workouts = Workout.objects.filter(is_custom = True, user = request.user)
 
     return render(
         request,
-        'tracker/main_page.html',   
+        'tracker/main-page.html',   
         {
             'global_workouts': global_workouts,
             'custom_workouts': custom_workouts,
@@ -46,10 +49,10 @@ def addCustomExercise(request):
     else:
         form = ExerciseForm()
     
-    return render(request, 'tracker/exercises/new_custom_exercise.html', {'form': form})
-        
-
-def newWorkout(request):
+    return render(request, 'tracker/exercises/new-custom-exercise.html', {'form': form})
+    
+@login_required
+def addWorkoutTemplate(request):
     if request.method == 'POST':
         form = WorkoutForm(request.POST, user=request.user)
         if form.is_valid():
@@ -58,10 +61,36 @@ def newWorkout(request):
     else:
         form = WorkoutForm(user=request.user)
 
-    return render(request, 'tracker/workouts/new_workout.html', {'form': form})
+    return render(request, 'tracker/workouts/templates/new-template.html', {'form': form})
 
-def editWorkout(request, workout_id):
-    workout = get_object_or_404(Workout, id=workout_id, user=request.user)
+@login_required
+def editTemplate(request, workout_id):
+    workout = get_object_or_404(Workout, id=workout_id)
 
-    return render(request, 'tracker/workouts/edit_workout.html', {'workout': workout})
+    return render(request, 'tracker/workouts/templates/edit-template.html', {'workout': workout})
 
+@require_POST
+def deleteTemplate(request, workout_id):
+    if not request.user.is_authenticated:
+        path = reverse('login')
+        return JsonResponse({
+            'status': 'error',
+            'code': 'no_auth',
+            'message': 'пользователь не авторизован',
+            'redirect': path,
+        })
+    try:
+        workout = Workout.objects.get(id=workout_id)
+        workout.delete()
+        return JsonResponse({'status': 'ok'})
+    except Workout.DoesNotExist:
+        path = reverse('error_page')
+        return JsonResponse({
+            'status': 'error',
+            'code': 'no_workout',
+            'message': 'объект не найден',
+            'redirect': path,
+        })
+    
+def errorPage(request):
+    return render(request, 'tracker/error-page.html')

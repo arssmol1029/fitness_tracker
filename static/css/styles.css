@@ -1,0 +1,18 @@
+:root {
+    --menu-width: 300px;
+    --mobile-menu-width: 100%;
+}
+
+.offcanvas {
+    transition: all 0.3s ease;
+}
+
+.offcanvas-end {
+    width: var(--menu-width);
+}
+
+@media (max-width: 768px) {
+    .offcanvas-end {
+        width: var(--mobile-menu-width) !important;
+    }
+}

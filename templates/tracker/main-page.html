@@ -6,10 +6,17 @@
     <div class="col-12 col-md-6 col-lg-3 mb-4">
         <div class="card justify-content-center d-flex">
             <div class="card-body">
+                <button 
+                    type="button"
+                    class="btn-close position-absolute top-0 end-0 m-2"
+                    onclick="confirmDelete(this)"
+                    path="{% url 'delete_template' workout.id %}"
+                    parent-selector=".col-12">
+                </button>
                 <h5 class="card-title">
                     {{ workout.name }}
                 </h5>
-                <a href="{% url 'edit_workout' workout.id %}">
+                <a href="{% url 'edit_template' workout.id %}">
                     <button type="button" class="btn btn-outline-primary">
                         Редактировать
                     </button>
@@ -17,11 +24,9 @@
             </div>
         </div>
     </div>
-    {% empty %}
-        <li>Вы еще не создавали своих тренировок.</li>
     {% endfor %}
     <div class="col-12 col-md-6 col-lg-3 mb-4 d-flex justify-content-center align-items-center">
-        <a href="{% url 'new_workout' %}">
+        <a href="{% url 'new_template' %}">
             <button type="button" class="btn btn-lg btn-outline-primary rounded-circle p-0" style="width: 50px; height: 50px;">
                 <i class="bi bi-plus fs-2"></i>
             </button>

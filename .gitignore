@@ -14,7 +14,7 @@ __pycache__/
 *.pyo
 *.pyd
 
-# 3. Базы данных и миграции (если SQLite)
+# 3. Базы данных и миграции
 *.sqlite3
 *.db
 db.sqlite3
@@ -38,6 +38,6 @@ media/
 secrets.json
 config.yml
 
-# 7. Файлы зависимостей (если используете Pipenv/Poetry)
+# 7. Файлы зависимостей
 Pipfile.lock
 poetry.l
