@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login
-from .forms import SignUpForm, ExerciseForm, WorkoutForm
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from . import forms
 from django.contrib.auth.decorators import login_required
 from .models import Workout
 from django.http import JsonResponse
@@ -26,20 +27,43 @@ def signup(request):
         return redirect('main_page')
 
     if request.method == 'POST':
-        form = SignUpForm(request.POST)
+        form = forms.SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             return redirect('main_page')
     else:
-        form = SignUpForm()
+        form = forms.SignUpForm()
 
     return render(request, 'registration/signup.html', {'form': form})
+
+def myLogin(request):
+    if request.user.is_authenticated:
+        next_url = request.GET.get('next', 'main_page')
+        return redirect(next_url)
+    
+    if request.method == 'POST':
+        form = forms.LoginForm(request, data=request.POST)
+        if form.is_valid():
+            user=form.get_user()
+
+            login(request, user)
+            next_url = request.GET.get('next', 'main_page')
+            return redirect(next_url)
+    else:
+        form = forms.LoginForm()
+
+    return render(request, 'registration/login.html', {'form': form})
+
+def myLogout(request):
+    if request.user.is_authenticated:
+        logout(request)
+    return redirect('login')
 
 @login_required
 def addCustomExercise(request):
     if request.method == 'POST':
-        form = ExerciseForm(request.POST)
+        form = forms.ExerciseForm(request.POST)
         if form.is_valid():
             exercise = form.save(False)
             exercise.user = request.user
@@ -47,19 +71,19 @@ def addCustomExercise(request):
             exercise.save()
             return redirect('main_page')
     else:
-        form = ExerciseForm()
+        form = forms.ExerciseForm()
     
     return render(request, 'tracker/exercises/new-custom-exercise.html', {'form': form})
     
 @login_required
 def addWorkoutTemplate(request):
     if request.method == 'POST':
-        form = WorkoutForm(request.POST, user=request.user)
+        form = forms.WorkoutForm(request.POST, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('main_page')
     else:
-        form = WorkoutForm(user=request.user)
+        form = forms.WorkoutForm(user=request.user)
 
     return render(request, 'tracker/workouts/templates/new-template.html', {'form': form})
 

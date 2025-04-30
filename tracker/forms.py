@@ -1,32 +1,41 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from .models import Profile, Workout, Exercise
 
 class SignUpForm(UserCreationForm):
+    username = forms.CharField(
+        label='Логин',
+        error_messages={
+            'required': 'Введите имя пользователя'
+        },
+    )
+
     email = forms.EmailField(
         label='Email',
         required=True,
+        error_messages={
+            'required': 'Введите email'
+        },
     )
 
-    birth_date = forms.DateField(
-        label='Дата рождения',
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date'}),
+    password1 = forms.CharField(
+        label='Пароль',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        error_messages={
+            'required': 'Введите пароль'
+        },
     )
-    
-    height = forms.FloatField(
-        label='Рост (см)',
-        required=False,
-        min_value=50,
-        max_value=250 
-    )
-    
-    weight = forms.FloatField(
-        label='Вес (кг)',
-        required=False,
-        min_value=20,
-        max_value=300
+
+    password2 = forms.CharField(
+        label='Повторите пароль',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        error_messages={
+            'required': 'Введите пароль ещё раз'
+        },
     )
 
     class Meta:
@@ -36,9 +45,18 @@ class SignUpForm(UserCreationForm):
             'email',
             'password1',
             'password2',
-            'birth_date',
-            'height',
-            'weight'
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            'username',
+            'email',
+            'password1',
+            'password2',
+            Submit('submit', 'Регистрация', css_class='btn-primary w-100'),
+            HTML('<p class="text-center mt-3">Уже есть аккаунт? <a href="{% url \'login\' %}">Войти</a></p>'),
         )
 
     '''
@@ -49,19 +67,43 @@ class SignUpForm(UserCreationForm):
         return email
     '''
 
-    def save(self, commit = True):
+    def save(self):
         user = super().save(commit=False)
         user.email = self.cleaned_data.get('email')
         user.save()
         
-        if commit:
-            profile = user.profile
-            profile.birth_date = self.cleaned_data['birth_date']
-            profile.height = self.cleaned_data['height']
-            profile.weight = self.cleaned_data['weight']
-            profile.save()
         return user
-    
+
+class LoginForm(AuthenticationForm):
+    username = forms.CharField(
+        label='Логин',
+        error_messages={
+            'required': 'Введите имя пользователя'
+        },
+    )
+    password = forms.CharField(
+        label='Пароль',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        error_messages={
+            'required': 'Введите пароль'
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            'username',
+            'password',
+            Submit('submit', 'Войти', css_class='btn-primary w-100'),
+            HTML('<p class="text-center mt-3">Нет аккаунта? <a href="{% url \'signup\' %}">Зарегистрируйтесь</a></p>'),
+        )
+
+    error_messages = {
+        'invalid_login': "Неверный логин или пароль",
+    }
+
+
 class ExerciseForm(forms.ModelForm):
     name = forms.CharField(
         label='Название',
