@@ -2,6 +2,8 @@
 {% load static %}
 {% load crispy_forms_tags %}
 <html lang="ru">
+
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,28 +14,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 
-    <style>
-        :root {
-            --menu-width: 300px;
-            --mobile-menu-width: 100%;
-        }
-        
-        .offcanvas {
-            transition: all 0.3s ease;
-        }
-        
-        .offcanvas-end {
-            width: var(--menu-width);
-        }
-        
-        @media (max-width: 768px) {
-            .offcanvas-end {
-                width: var(--mobile-menu-width) !important;
-            }
-        }
-    </style>
     {% block extra_css %}{% endblock %}
 </head>
+
+
 
 <body>
     <!-- Шапка страницы -->
@@ -50,10 +34,12 @@
     </nav>
     {% endblock %}
 
+
     <!-- Страница -->
     <main class="container-fluid p-3">
         {% block content %}{% endblock %}
     </main>
+
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="sideMenu">
         <div class="offcanvas-header">
@@ -78,6 +64,7 @@
         </div>
     </div>
 
+
     <div class="modal fade" id="customConfirm" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -96,8 +83,20 @@
         </div>
     </div>
 
+
+
+    <script>
+        window.URLS = {
+            exerciseSearch: "{% url 'exercise_search' %}",
+            errorPage: "{% url 'error_page' %}"
+        };
+    </script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'js/delete-object.js' %}"></script>
+    <script type="module" src="{% static 'js/functions.js' %}"></script>
+    <script type="module" src="{% static 'js/delete-object.js' %}"></script>
     {% block extra_js %}{% endblock %}
+    
 </body>
 </html>

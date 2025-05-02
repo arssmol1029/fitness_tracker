@@ -22,6 +22,7 @@ class Exercise(models.Model):
     )
     name = models.CharField(max_length=100)
     is_custom = models.BooleanField(default=True)
+    is_own_weight = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -34,7 +35,8 @@ class Workout(models.Model):
         blank=True,
     )
     name = models.CharField(max_length=100, default='тренировка')
-    is_template = models.BooleanField(default=True)
+    date = models.DateField(null=True, blank=True)
+    is_template = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=True)
     exercises = models.ManyToManyField(
         Exercise,
@@ -42,7 +44,6 @@ class Workout(models.Model):
         through='tracker.WorkoutExercises',
         through_fields=('workout', 'exercise'),
     )
-    date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -50,7 +51,7 @@ class Workout(models.Model):
 class WorkoutExercises(models.Model):
     workout = models.ForeignKey(Workout, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
-    sets = models.PositiveIntegerField(default=4)
+    sets = models.PositiveIntegerField(null=True, blank=True)
 
 class ExerciseSet(models.Model):
     workout_exercise = models.ForeignKey(
@@ -59,7 +60,7 @@ class ExerciseSet(models.Model):
         related_name='exercise_sets',
     )
     set_number = models.PositiveIntegerField()
-    reps = models.PositiveIntegerField(default=4)
+    reps = models.PositiveIntegerField()
     weight = models.FloatField(null=True, blank=True)
 
 # Cоздание профиля при регистрации

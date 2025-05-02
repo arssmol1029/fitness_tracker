@@ -5,6 +5,8 @@ from django.contrib.auth import authenticate
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from .models import Profile, Workout, Exercise
+from django.db.models import Q
+from datetime import date
 
 class SignUpForm(UserCreationForm):
     username = forms.CharField(
@@ -129,45 +131,31 @@ class WorkoutForm(forms.ModelForm):
         max_length=100,
     )
 
-    global_exercises = forms.ModelMultipleChoiceField(
-        queryset=Exercise.objects.filter(is_custom=False),
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-    )
-
-    custom_exercises = forms.ModelMultipleChoiceField(
-        queryset=Exercise.objects.filter(is_custom=True),
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
+    date = forms.DateField(
+        label='Дата',
+        widget=forms.DateInput(attrs={'type': 'date'}),  # Активирует HTML5-календарь
+        initial=date.today(),
     )
 
     class Meta:
         model = Workout
         fields = (
             'name',
+            'date'
         )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
-        if not self.user or not self.user.is_authenticated:
-            del self.fields['custom_exercises']
-        else:
-            self.fields['custom_exercises'].queryset = Exercise.objects.filter(is_custom=True, user = self.user)
+
+        self.helper = FormHelper()
     
-    def save(self, commit = True, is_template = True):
+    def save(self, commit = True, is_template = False):
         workout = super().save(commit=False)
         workout.name = self.cleaned_data['name'].capitalize()
-        workout.is_template = is_template
-        if self.user:
-            workout.user = self.user
-            workout.is_custom = True
+        workout.date = self.cleaned_data['date']
 
         if commit:
             workout.save()
-        
-        all_exercises = list(self.cleaned_data['global_exercises']) + list(self.cleaned_data['custom_exercises'])
-        workout.exercises.set(all_exercises)
 
         return workout

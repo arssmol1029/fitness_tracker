@@ -3,10 +3,14 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from . import forms
 from django.contrib.auth.decorators import login_required
-from .models import Workout
+from .models import Workout, Exercise, WorkoutExercises
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.urls import reverse
+from django.db.models import Q
+import json
+
+
 
 @login_required
 def mainPage(request):
@@ -22,6 +26,9 @@ def mainPage(request):
         },
     )
 
+
+
+
 def signup(request):
     if request.user.is_authenticated:
         return redirect('main_page')
@@ -36,6 +43,8 @@ def signup(request):
         form = forms.SignUpForm()
 
     return render(request, 'registration/signup.html', {'form': form})
+
+
 
 def myLogin(request):
     if request.user.is_authenticated:
@@ -55,43 +64,78 @@ def myLogin(request):
 
     return render(request, 'registration/login.html', {'form': form})
 
+
+
 def myLogout(request):
     if request.user.is_authenticated:
         logout(request)
     return redirect('login')
 
+
+
 @login_required
-def addCustomExercise(request):
+def workoutCreateView(request): 
     if request.method == 'POST':
-        form = forms.ExerciseForm(request.POST)
+        form = forms.WorkoutForm(request.POST)
         if form.is_valid():
-            exercise = form.save(False)
-            exercise.user = request.user
-            exercise.is_custom = True
-            exercise.save()
-            return redirect('main_page')
+            is_template_data = request.POST.get('is_template', 'false') == 'true'
+            workout = form.save(commit=False)
+            workout.user = request.user
+            workout.is_template = is_template_data
+            workout.save()
+
+            exercises_data = json.loads(request.POST.get('exercises', '[]'))
+            
+            for ex in exercises_data:
+                WorkoutExercises.objects.create(
+                    workout_id=workout.id,
+                    exercise_id=ex['exercise_id'],
+                    sets=ex['sets'],
+                )
+
+            return JsonResponse({'status': 'ok'})
+        
+        return JsonResponse({'status': 'error', 'redirect_url': reverse('error_page')})
+     
     else:
-        form = forms.ExerciseForm()
+        form = forms.WorkoutForm()
+
+    return render(request, 'tracker/workouts/workout.html', {'form': form})
+
+
+
+def exerciseSearch(request):
+    term = request.GET.get('term', '')
+    exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term))
+    results = [{'id': exercise.id, 'name': exercise.name} for exercise in exercises]
+    return JsonResponse({'results': results})
+
+
+
+def loadTemplate(request, workout_id):
+    try:
+        template = Workout.objects.get(id=workout_id, is_template=True)
+        exercises = []
+        for te in template.workoutexercises_set.all():
+            exercises.append({
+                'exercise_id': te.exercise.id,
+                'name': te.exercise.name,
+            })
+        return JsonResponse({
+            'status': 'ok',
+            'title': template.title,
+            'exercises': exercises
+        })
+    except Workout.DoesNotExist:
+        path = reverse('error_page')
+        return JsonResponse({
+            'status': 'error',
+            'code': 'not_exist',
+            'message': 'шаблон не найден',
+            'redirect_url': path,
+        })
     
-    return render(request, 'tracker/exercises/new-custom-exercise.html', {'form': form})
-    
-@login_required
-def addWorkoutTemplate(request):
-    if request.method == 'POST':
-        form = forms.WorkoutForm(request.POST, user=request.user)
-        if form.is_valid():
-            form.save()
-            return redirect('main_page')
-    else:
-        form = forms.WorkoutForm(user=request.user)
 
-    return render(request, 'tracker/workouts/templates/new-template.html', {'form': form})
-
-@login_required
-def editTemplate(request, workout_id):
-    workout = get_object_or_404(Workout, id=workout_id)
-
-    return render(request, 'tracker/workouts/templates/edit-template.html', {'workout': workout})
 
 @require_POST
 def deleteTemplate(request, workout_id):
@@ -101,7 +145,7 @@ def deleteTemplate(request, workout_id):
             'status': 'error',
             'code': 'no_auth',
             'message': 'пользователь не авторизован',
-            'redirect': path,
+            'redirect_url': path,
         })
     try:
         workout = Workout.objects.get(id=workout_id)
@@ -113,8 +157,10 @@ def deleteTemplate(request, workout_id):
             'status': 'error',
             'code': 'no_workout',
             'message': 'объект не найден',
-            'redirect': path,
+            'redirect_url': path,
         })
     
+
+
 def errorPage(request):
     return render(request, 'tracker/error-page.html')
