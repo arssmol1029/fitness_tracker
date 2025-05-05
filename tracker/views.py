@@ -3,13 +3,14 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from . import forms
 from django.contrib.auth.decorators import login_required
-from .models import Workout, Exercise, WorkoutExercises
+from .models import Workout, Exercise, WorkoutExercises, ExerciseSet
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.db.models import Q
 import json
-
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 
 @login_required
@@ -87,11 +88,21 @@ def workoutCreateView(request):
             exercises_data = json.loads(request.POST.get('exercises', '[]'))
             
             for ex in exercises_data:
-                WorkoutExercises.objects.create(
+                workout_exercise = WorkoutExercises.objects.create(
                     workout_id=workout.id,
                     exercise_id=ex['exercise_id'],
-                    sets=ex['sets'],
                 )
+                sets=ex['sets']
+                number = 1
+                for set in sets:
+                    ExerciseSet.objects.create(
+                        workout_exercise_id=workout_exercise.id,
+                        set_number=number,
+                        reps=set['reps'],
+                        weight=set.get('weight'),
+                    )
+                    number += 1
+
 
             return JsonResponse({'status': 'ok'})
         
@@ -103,15 +114,17 @@ def workoutCreateView(request):
     return render(request, 'tracker/workouts/workout.html', {'form': form})
 
 
-
+@api_view(['GET'])
 def exerciseSearch(request):
-    term = request.GET.get('term', '')
-    exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term))
-    results = [{'id': exercise.id, 'name': exercise.name} for exercise in exercises]
-    return JsonResponse({'results': results})
+    term = request.data.get('term', '')
+    exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term.capitalize()))
+    results = [{'id': exercise.id, 'text': exercise.name, 'is_own_weight': exercise.is_own_weight} 
+               for exercise in exercises]
+    return Response({'results': results})
 
 
 
+'''
 def loadTemplate(request, workout_id):
     try:
         template = Workout.objects.get(id=workout_id, is_template=True)
@@ -134,7 +147,8 @@ def loadTemplate(request, workout_id):
             'message': 'шаблон не найден',
             'redirect_url': path,
         })
-    
+'''
+
 
 
 @require_POST
@@ -159,7 +173,7 @@ def deleteTemplate(request, workout_id):
             'message': 'объект не найден',
             'redirect_url': path,
         })
-    
+      
 
 
 def errorPage(request):

@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
-from .models import Profile, Workout, Exercise
+from .models import Profile, Workout, Exercise, ExerciseSet
 from django.db.models import Q
 from datetime import date
 
@@ -104,26 +104,6 @@ class LoginForm(AuthenticationForm):
     error_messages = {
         'invalid_login': "Неверный логин или пароль",
     }
-
-
-class ExerciseForm(forms.ModelForm):
-    name = forms.CharField(
-        label='Название',
-        max_length=100,
-    )
-
-    class Meta:
-        model = Exercise
-        fields = (
-            'name',
-        )
-
-    def save(self, commit = True):
-        exercise = super().save(commit=False)
-        exercise.name = self.cleaned_data['name'].capitalize()
-        if commit:
-            exercise.save()
-        return exercise
     
 class WorkoutForm(forms.ModelForm):
     name = forms.CharField(
@@ -159,3 +139,31 @@ class WorkoutForm(forms.ModelForm):
             workout.save()
 
         return workout
+
+
+class SetForm(forms.ModelForm):
+    reps = forms.IntegerField(min_value=1, max_value=120)
+    weight = forms.DecimalField(decimal_places=3)
+    class Meta:
+        model = ExerciseSet
+        fields = (
+            'reps',
+            'weight'
+        )
+
+    def __init__(self, *args, is_own_weight=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if is_own_weight:
+            self.fields['weight'].disabled = True
+        self.helper = FormHelper()
+
+    def save(self, commit=True, is_own_weight=False):
+        exercise_set = super.save(commit=False)
+        exercise_set.reps = self.cleaned_data['reps']
+        if not is_own_weight: 
+            exercise_set.weight = self.cleaned_data['weight']
+
+        if commit:
+            exercise_set.save()
+
+        return exercise_set

@@ -3,47 +3,94 @@ import { getCSRFToken } from './functions.js';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('workout-form');
     const container = document.getElementById('exercises-container');
-    const addBtn = document.getElementById('add-exercise');
+    const addExBtn = document.getElementById('add-exercise');
     const saveTempBtn = document.getElementById('save-template');
     const saveBtn = document.getElementById('save-workout');
     const successModalEl = document.getElementById('success-modal');
     const errorModalEl = document.getElementById('error-modal');
     const successModal = new bootstrap.Modal(successModalEl);
     const errorModal = new bootstrap.Modal(errorModalEl);
-    let currentTag = 0;
+    let exerciseTag = 0;
+    let setTag = 0;
 
-    addBtn.addEventListener('click', function() {
-        const template = document.getElementById('exercise-template').cloneNode(true);
-        template.classList.remove('d-none');
-        template.id = 'exercise-' + currentTag;
-    
-        const select = template.querySelector('.exercise-select');
-        select.name = 'exercise_' + currentTag;
+    addExBtn.addEventListener('click', function() {
+        const exTemplate = document.getElementById('exercise-template').cloneNode(true);
+        exTemplate.classList.remove('d-none');
+        exTemplate.id = 'exercise-' + exerciseTag;
+        const select = exTemplate.querySelector('.exercise-select');
         
-        const setsInput = template.querySelector('.sets-input');
-        setsInput.name = 'sets_' + currentTag;
-        
-        ++currentTag;
+        ++exerciseTag;
 
         $(select).select2({
             ajax: {
                 url: window.URLS.exerciseSearch,
                 dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return { term: params.term };
-                },
                 processResults: function(data) {
-                    return { results: data.results };
+                    return {
+                        results: data.results.map(item => {
+                            return {
+                                id: item.id,
+                                text: item.text,
+                                is_own_weight: item.is_own_weight,
+                            };
+                        })
+                    };
                 }
+            },
+            templateResult: function(item) {
+                return item.text;
+            },
+            templateSelection: function(item) {
+                const selectedOption = select.options[select.selectedIndex];
+                $(selectedOption).data('is-own-weight', item.is_own_weight);
+                return item.text;
+            }
+        });
+
+        $(select).on('change.select2', function() {
+            const selectedData = $(this).select2('data')[0];
+            
+            if (selectedData.is_own_weight) {
+                $(exTemplate).find('.weight-input').parent().hide();
+            } else {
+                $(exTemplate).find('.weight-input').parent().show();
             }
         });
         
-        template.querySelector('.remove-exercise').addEventListener('click', function() {
-            container.removeChild(template);
-        });
         
-        container.appendChild(template);
+
+        exTemplate.querySelector('.remove-exercise').addEventListener('click', function() {
+            container.removeChild(exTemplate);
+        });
+
+        container.appendChild(exTemplate);
+
+        const addSetBtn = exTemplate.querySelector('.add-set');
+        addSetBtn.addEventListener('click', function() {
+            const selectedData = $(select).select2('data')[0];
+            if (!selectedData) return;
+
+            const setTemplate = document.getElementById('set-template').cloneNode(true);
+            setTemplate.classList.remove('d-none');
+            setTemplate.id = 'set-' + setTag;
+            ++setTag;
+            
+            if (selectedData.is_own_weight) {
+                $(setTemplate).find('.weight-input').parent().hide();
+            } else {
+                $(setTemplate).find('.weight-input').parent().show();
+            }
+
+            const setsContainer = exTemplate.querySelector('.sets-container');
+            
+            setTemplate.querySelector('.remove-set').addEventListener('click', function() {
+                setsContainer.removeChild(setTemplate);
+            });
+
+            setsContainer.appendChild(setTemplate);
+        });
+
+        
     });
 
 
@@ -73,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();  
     });
 
-    form.querySelectorAll('input').forEach(input => {
+    form.querySelectorAll('.input').forEach(input => {
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -81,31 +128,53 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    
     function getExercises() {
         const exercises = [];
         const cards = container.querySelectorAll('.card:not(.d-none)');
         
         cards.forEach((card) => {
             const select = card.querySelector('.exercise-select');
-            const sets = card.querySelector('.sets-input');
-            
+            if (!select.value) return;
+        
+            const sets = getSets(card);
+        
             exercises.push({
                 exercise_id: select.value,
-                sets: sets.value
+                sets: sets
             });
         });
         
         return exercises;
     }
 
+    function getSets(card) {
+        const sets = [];
+        const setsContainer = card.querySelector('.sets-container');
+        const setCards = setsContainer.querySelectorAll('.set-row');;
+
+        setCards.forEach((setCard) => {
+            const weightInput = setCard.querySelector('.weight-input');
+            const repsInput = setCard.querySelector('.reps-input');
+            const setData = {
+                reps: repsInput ? repsInput.value : null
+            };
+            if (weightInput && $(weightInput).is(':visible')) {
+                setData.weight = weightInput.value;
+            }
+            
+            sets.push(setData);
+        });
+
+        return sets;
+    }
+
     async function saveWorkoutForm(isTemplate) {
         const formData = new FormData(form);
         const exercises = getExercises();
-        
         formData.append('exercises', JSON.stringify(exercises));
         formData.append('is_template', String(isTemplate));
-        
+
         try {
             const response = await fetch(form.action || window.location.href, {
                 method: 'POST',
