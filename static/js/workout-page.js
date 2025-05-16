@@ -3,24 +3,119 @@ import { getCSRFToken } from './functions.js';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('workout-form');
     const container = document.getElementById('exercises-container');
-    const addExBtn = document.getElementById('add-exercise');
-    const saveTempBtn = document.getElementById('save-template');
+
+    const checkNew = document.getElementById('is-new');
+    const isNew = (JSON.parse(checkNew.value.toLowerCase()));
+
+    const checkEditMode = document.getElementById('edit-mode');
+    let isEditMode = !(JSON.parse(checkEditMode.value.toLowerCase()));
+    let sortable = new Sortable(container, {
+        animation: 150,
+        handle: '.card-body',
+        disabled: !isEditMode,
+        ghostClass: 'drag-ghost',
+        chosenClass: 'drag-chosen',
+        dragClass: 'drag-item',
+    });
+
+    const editBtn = document.getElementById('edit-mode-on');
     const saveBtn = document.getElementById('save-workout');
+    const saveTempBtn = document.getElementById('save-template');
+    const cancelBtn = document.getElementById('edit-mode-off');
+    const addExBtn = document.getElementById('add-exercise');
+
     const successModalEl = document.getElementById('success-modal');
     const errorModalEl = document.getElementById('error-modal');
+    const cancelModalEl = document.getElementById('cancel-modal');
+    const closeBtn = document.getElementById('close-btn');
+    
     const successModal = new bootstrap.Modal(successModalEl);
     const errorModal = new bootstrap.Modal(errorModalEl);
-    let exerciseTag = 0;
-    let setTag = 0;
+    const cancelModal = new bootstrap.Modal(cancelModalEl);
 
-    addExBtn.addEventListener('click', function() {
-        const exTemplate = document.getElementById('exercise-template').cloneNode(true);
-        exTemplate.classList.remove('d-none');
-        exTemplate.id = 'exercise-' + exerciseTag;
-        const select = exTemplate.querySelector('.exercise-select');
+
+    function changeEditMode() {
+        if (isEditMode) {
+            if (hasEmptyRequired()) {
+                return;
+            }
+        }
+
+        isEditMode = !isEditMode;
+        checkEditMode.value = isEditMode.toString();
+        sortable.option("disabled", !isEditMode);
+
+        const hiddenEl = document.querySelectorAll('.edit-hidden');
+        hiddenEl.forEach((El) => {
+            El.hidden = isEditMode;
+        });
+
+        const displayedEl = document.querySelectorAll('.edit-displayed');
+        displayedEl.forEach((El) => {
+            El.hidden = !isEditMode;
+        });
+
+        const disabledEl = document.querySelectorAll('.edit-disabled');
+        disabledEl.forEach((El) => {
+            El.disabled = isEditMode;
+        });
+
+        const enabledEl = document.querySelectorAll('.edit-enabled');
+        enabledEl.forEach((El) => {
+            El.disabled = !isEditMode;
+        });
+    };
+
+    function hasEmptyRequired() {
+        document.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+
+        const requiredFields = document.querySelectorAll(`
+            .edit-enabled[required]:not([hidden]),
+            .edit-enabled[required]:not(.d-none)
+        `);
+        let emptyRequired = false;
         
-        ++exerciseTag;
+        requiredFields.forEach(field => {
+            if (field.checkVisibility()) {
+                if (field.tagName === 'SELECT') {
+                    if (!field.value) {
+                        emptyRequired = true;
+                        const $select2Container = $(field).next('.select2-container');
+                        $select2Container.addClass('is-invalid');
+                    }
+                } else if (!field.value.trim()) {
+                    emptyRequired = true;
+                    field.classList.add('is-invalid');
+                }
+            }
+        });
 
+        if (emptyRequired) {
+            document.querySelectorAll('.is-invalid').forEach(field => {
+                const removeHighlight = () => {
+                    field.classList.remove('is-invalid');
+                    field.removeEventListener('focus', removeHighlight);
+                    field.removeEventListener('click', removeHighlight);
+                };
+                
+                field.addEventListener('focus', removeHighlight);
+                field.addEventListener('click', removeHighlight);
+            });
+        }
+
+        return emptyRequired;
+    };
+
+    changeEditMode();
+
+    if (!isNew) {
+        editBtn.addEventListener('click', changeEditMode);
+    }
+
+    async function selectCustom(card) {
+        const select = card.querySelector('.exercise-select');
         $(select).select2({
             ajax: {
                 url: window.URLS.exerciseSearch,
@@ -51,71 +146,113 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedData = $(this).select2('data')[0];
             
             if (selectedData.is_own_weight) {
-                $(exTemplate).find('.weight-input').parent().hide();
+                $(card).find('.weight-input').val('').parent().hide();
+                
             } else {
-                $(exTemplate).find('.weight-input').parent().show();
+                $(card).find('.weight-input').parent().show();
             }
         });
-        
-        
+    };
 
-        exTemplate.querySelector('.remove-exercise').addEventListener('click', function() {
-            container.removeChild(exTemplate);
+    function addSet(card) {
+        const select = card.querySelector('.exercise-select');
+        const selectedData = $(select).select2('data')[0];
+        if (!selectedData) return;
+
+        const set = document.getElementById('set-template').cloneNode(true);
+        set.classList.remove('d-none');
+        set.removeAttribute('id');
+        
+        if (selectedData.is_own_weight) {
+            set.querySelector('.weight-input').parentElement.hidden = true;
+            set.querySelector('.weight-input').required = false;
+        } else {
+            set.querySelector('.weight-input').parentElement.hidden = false;
+            set.querySelector('.weight-input').required = true;
+        }
+
+        const setsContainer = card.querySelector('.sets-container');
+        
+        set.querySelector('.remove-set').addEventListener('click', function() {
+            setsContainer.removeChild(set);
         });
 
-        container.appendChild(exTemplate);
+        setsContainer.appendChild(set);
+    };
 
-        const addSetBtn = exTemplate.querySelector('.add-set');
-        addSetBtn.addEventListener('click', function() {
-            const selectedData = $(select).select2('data')[0];
-            if (!selectedData) return;
+    const cards = document.querySelectorAll('.card:not(.d-none)');
+    cards.forEach((card) => {
+        selectCustom(card);
 
-            const setTemplate = document.getElementById('set-template').cloneNode(true);
-            setTemplate.classList.remove('d-none');
-            setTemplate.id = 'set-' + setTag;
-            ++setTag;
-            
-            if (selectedData.is_own_weight) {
-                $(setTemplate).find('.weight-input').parent().hide();
-            } else {
-                $(setTemplate).find('.weight-input').parent().show();
-            }
+        card.querySelector('.remove-exercise').addEventListener('click', function() {
+            container.removeChild(card);
+        });
 
-            const setsContainer = exTemplate.querySelector('.sets-container');
-            
-            setTemplate.querySelector('.remove-set').addEventListener('click', function() {
-                setsContainer.removeChild(setTemplate);
+        const setsContainer = card.querySelector('.sets-container');
+        const sets = setsContainer.querySelectorAll('.set-row');
+        sets.forEach((set) => {
+            set.querySelector('.remove-set').addEventListener('click', function() {
+                setsContainer.removeChild(set);
             });
-
-            setsContainer.appendChild(setTemplate);
         });
 
-        
+        const addSetBtn = card.querySelector('.add-set');
+        addSetBtn.addEventListener('click', () => addSet(card));
     });
 
+    addExBtn.addEventListener('click', function() {
+        const exCard = document.getElementById('exercise-template').cloneNode(true);
+        exCard.classList.remove('d-none');
+        exCard.removeAttribute('id');
+        
+        selectCustom(exCard);
+
+        exCard.querySelector('.remove-exercise').addEventListener('click', function() {
+            container.removeChild(exCard);
+        });
+
+        container.appendChild(exCard);
+
+        const addSetBtn = exCard.querySelector('.add-set');
+        addSetBtn.addEventListener('click', () => addSet(exCard));
+    });
+    
 
     //Сохранение происходит через button, чтобы не происходила стандартная отправка формы
-    saveTempBtn.addEventListener('click', async (e) => {
-        e.preventDefault();        
+    saveTempBtn.addEventListener('click', async function() {       
         try{
             await saveWorkoutForm(true);
             showSuccessModal(true);
         } catch(error) {
             showErrorModal();
+            hasEmptyRequired();
         }       
     });
 
-    saveBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
+    
+    saveBtn.addEventListener('click', async function() {
         try{
             await saveWorkoutForm(false);
             showSuccessModal(false);
         } catch(error) {
             showErrorModal();
+            hasEmptyRequired();
         }       
     });
 
-    //Блокирую отправку формы при submit
+    if (!isNew) {
+        cancelBtn.addEventListener('click', () => showCancelModal(false));
+    }
+
+    closeBtn.addEventListener('click', function() {
+        if (isNew || isEditMode) {
+            showCancelModal(true);
+        } else {
+            window.location.href = window.URLS.mainPage;
+        }
+    });
+
+    //Блокировка отправки формы при submit
     form.addEventListener('submit', async function(e) {
         e.preventDefault();  
     });
@@ -146,12 +283,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         return exercises;
-    }
+    };
 
     function getSets(card) {
         const sets = [];
         const setsContainer = card.querySelector('.sets-container');
-        const setCards = setsContainer.querySelectorAll('.set-row');;
+        const setCards = setsContainer.querySelectorAll('.set-row');
 
         setCards.forEach((setCard) => {
             const weightInput = setCard.querySelector('.weight-input');
@@ -167,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         return sets;
-    }
+    };
 
     async function saveWorkoutForm(isTemplate) {
         const formData = new FormData(form);
@@ -200,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             throw error;
         }
-    }
+    };
 
     function showSuccessModal(isTemplate) {
         const message = document.getElementById('success-message');
@@ -209,12 +346,35 @@ document.addEventListener('DOMContentLoaded', function() {
           : 'Тренировка успешно сохранена!';
         
         successModal.show();
-    }
+    };
     
     function showErrorModal() {
-        const errorButton = document.getElementById('error-modal-button');
+        const errorButton = errorModalEl.querySelector('.again-btn');
   
         errorButton.onclick = () => location.reload();
         errorModal.show();
-    }
+    };
+
+    function showCancelModal(isClose) {
+        const saveButton = cancelModalEl.querySelector('.save-btn');
+        const notSaveButton = cancelModalEl.querySelector('.not-save-btn');
+        const toMenuButton = cancelModalEl.querySelector('.to-menu-btn');
+
+        saveButton.onclick = async function() {
+            try{
+                await saveWorkoutForm(false);
+                showSuccessModal(false);
+            } catch(error) {
+                showErrorModal();
+                hasEmptyRequired();
+            }
+        };
+        if (isClose) {
+            notSaveButton.hidden = true;
+        } else {
+            toMenuButton.hidden=true;
+            notSaveButton.onclick = () => location.reload(); 
+        }
+        cancelModal.show();
+    };
 });

@@ -3,44 +3,157 @@
 {% load crispy_forms_tags %}
 
 {% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container.is-invalid .select2-selection {
+        border-color: #dc3545 !important;
+    }
+    .drag-ghost {
+        opacity: 0.5;
+        background: #c8ebfb;
+    }
+
+    .drag-chosen {
+        background: #f8f9fa;
+        border: 1px dashed #0d6efd;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<h2>Создать тренировку</h2>
+
+<input type="hidden" id="edit-mode" value="{{ edit_mode|lower }}">
+<input type="hidden" id="is-new" value="{% if workout %} false {% else %} true {% endif %}">
+
+<h2 class="position-relative">
+    {% if not workout %}Создать тренировку{% endif %}
+    <div class="position-absolute top-0 end-0">
+        {% if workout %}
+            <button type="button" id="edit-mode-on" class="btn btn-lg edit-hidden" {% if workout %} hidden {% endif %}>
+                <i class="bi bi-pencil"></i>
+            </button>
+        {% endif %}
+        <button type="button" id="close-btn" class="btn btn-lg">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+</h2>
+
 <form id="workout-form" method="post">
     {% csrf_token %}
-    <div class="col-md-4 mb-3">
+    <div class="col-md-5 mb-3">
         {{ form.name|as_crispy_field }}
     </div>
-    <div class="col-md-4">
+    <div class="col-md-5">
         {{ form.date|as_crispy_field }}
     </div>
 
     <div id="exercises-container" class="mb-3">
+        {% if workout %}
+            {% for workout_exercise in workout.workout_exercises %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <button
+                            type="button"
+                            class="remove-exercise btn-close position-absolute top-0 end-0 m-2 edit-displayed"
+                        ></button>
+                        <div class="row mb-3">
+                            <div class="col-12 col-md-6">
+                                <select 
+                                    class="form-control exercise-select edit-enabled text-truncate"
+                                    name="exercises[]"
+                                    required
+                                    style="width: 50%;"
+                                >
+                                    <option value="{{ workout_exercise.exercise.id }}">
+                                        {{ workout_exercise.exercise.name }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="sets-container mb-3">
+                            {% for set in workout_exercise.ordered_sets %}
+                                <div class="set-row row mb-3">
+                                    <div class="col-sm-8 col-md-4">
+                                        <label class="form-label mb-2 ps-2">Повторения:</label>
+                                        <input
+                                            type="number"
+                                            value="{{ set.reps }}"
+                                            class="form-control reps-input edit-enabled"
+                                            name="reps[]"
+                                            min="1"
+                                            required
+                                        >
+                                    </div>
+                                    <div 
+                                        class="col-sm-8 col-md-4"
+                                        {% if workout_exercise.exercise.is_own_weight %} hidden {% endif %}
+                                    >
+                                        <label class="form-label mb-2 ps-2">Вес:</label>
+                                        <input 
+                                            type="number"
+                                            {% if not workout_exercise.exercise.is_own_weight %}
+                                                value="{{ set.weight }}"
+                                                required
+                                            {% endif %}
+                                            class="form-control weight-input edit-enabled"
+                                            name="weight[]"
+                                            min="0" step="0.125"
+                                        >
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-center">
+                                        <button type="button" class="btn btn-md remove-set edit-displayed">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <button 
+                            type="button"
+                            class="btn btn-sm btn-outline-primary add-set edit-displayed"
+                        >
+                            + Добавить подход
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
     </div>
 
-    <button type="button" id="add-exercise" class="btn btn-outline-primary mb-3">
+    <button id="add-exercise" type="button"class="btn btn-outline-primary mb-3 edit-displayed">
         + Добавить упражнение
     </button>
 
-    <div class="d-flex flex-wrap gap-2">
-        <button type="button" id="save-workout" class="btn btn-primary">
-            Сохранить тренировку
+    <div class="d-flex flex-wrap gap-2"></div>
+        <button type="button" id="save-workout" class="btn btn-primary edit-displayed">
+            Сохранить
         </button>
-        <button type="button" id="save-template" class="btn btn-secondary">
+        <button type="button" id="save-template" class="btn btn-secondary edit-displayed">
             Сохранить как шаблон
         </button>
+        {% if workout %}
+            <button type="button" id="edit-mode-off" class="btn btn-danger edit-displayed">
+                Отменить
+            </button>
+        {% endif %}
     </div>
 </form>
 
 <!-- Шаблон упражнения -->
 <div id="exercise-template" class="card mb-3 d-none">
     <div class="card-body">
-        <button type="button" class="remove-exercise btn-close position-absolute top-0 end-0 m-2"></button>
+        <button
+            type="button"
+            class="remove-exercise btn-close position-absolute top-0 end-0 m-2 edit-displayed"
+        ></button>
         <div class="row mb-3">
-            <div class="col-12">
-                <select class="form-control exercise-select" name="exercises[]" required>
+            <div class="col-12 col-md-6">
+                <select 
+                    class="form-control exercise-select edit-enabled text-truncate"
+                    name="exercises[]"
+                    required
+                    style="width: 50%;"
+                >
                     <option value="">Выберите упражнение</option>
                 </select>
             </div>
@@ -48,20 +161,41 @@
         <div class="sets-container mb-3">
             <!-- Подходы -->
         </div>
-        <button type="button" class="btn btn-sm btn-outline-primary add-set">+ Добавить подход</button>
+        <button 
+            type="button"
+            class="btn btn-sm btn-outline-primary add-set edit-displayed"
+        >
+            + Добавить подход
+        </button>
     </div>
 </div>
 
 <!-- Шаблон подхода -->
-<div id="set-template" class="set-row row mb-2 d-none">
-    <div class="col-md-4">
-        <input type="number" class="form-control reps-input" name="reps[]" placeholder="Повторения" min="1" required>
+<div id="set-template" class="set-row row mb-3 d-none">
+    <div class="col-sm-8 col-md-4">
+        <label class="form-label mb-2 ps-2">Повторения:</label>
+        <input
+            type="number"
+            class="form-control reps-input edit-enabled"
+            name="reps[]"
+            min="1"
+            required
+        >
     </div>
-    <div class="col-md-4">
-        <input type="number" class="form-control weight-input" name="weight[]" placeholder="Вес (кг)" min="0" step="0.125">
+    <div class="col-sm-8 col-md-4">
+        <label class="form-label mb-2 ps-2">Вес:</label>
+        <input 
+            type="number"
+            class="form-control weight-input edit-enabled"
+            name="weight[]"
+            min="0" step="0.125"
+            required
+        >
     </div>
-    <div class="col-md-4">
-        <button type="button" class="btn btn-sm btn-outline-dark remove-set">×</button>
+    <div class="col-md-4 d-flex align-items-center">
+        <button type="button" class="btn btn-md remove-set edit-displayed">
+            <i class="bi bi-x-lg"></i>
+        </button>
     </div>
 </div>
 
@@ -91,10 +225,35 @@
             <div class="modal-body text-center py-4">
                 <h4 class="mb-4 text-danger">Ошибка сохранения!</h4>
                 <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <button id="error-modal-button" class="btn btn-primary px-4" data-bs-dismiss="modal">
+                    <button class="btn btn-primary px-4 again-btn" data-bs-dismiss="modal">
                         Попробовать снова
                     </button>
-                    <a href="{% url 'main_page' %}" class="btn btn-secondary px-4">
+                    <a href="{% url 'main_page' %}" class="btn btn-secondary px-4 to-menu-btn">
+                        На главную
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Отмена редактирования -->
+ <div id="cancel-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 position-relative">
+                <button type="button" class="btn-close position-absolute end-0 top-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <h4 class="mb-4">Сохранить изменения?</h4>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <button class="btn btn-primary px-4 save-btn" data-bs-dismiss="modal">
+                        Сохранить
+                    </button>
+                    <button class="btn btn-secondary px-4 not-save-btn" data-bs-dismiss="modal">
+                        Не сохранять
+                    </button>
+                    <a href="{% url 'main_page' %}" class="btn btn-secondary px-4 to-menu-btn">
                         На главную
                     </a>
                 </div>
@@ -105,5 +264,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script type="module" src="{% static 'js/workout-page.js' %}"></script>
 {% endblock %}

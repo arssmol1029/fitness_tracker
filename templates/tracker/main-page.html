@@ -1,13 +1,54 @@
 {% extends 'base/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12 col-md-6 col-lg-3 mb-4 d-flex justify-content-center align-items-center">
-        <a href="{% url 'workout_new' %}">
-            <button type="button" class="btn btn-lg btn-outline-primary rounded-circle p-0" style="width: 50px; height: 50px;">
-                <i class="bi bi-plus fs-2"></i>
-            </button>
-        </a>
+<div class="container mt-4 float-start" style="max-width: 800px;">
+  <div class="card shadow">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <button class="btn btn-light prev-month" value="{{ prev_month }}">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <h4 class="mb-0 month-title">{{ month_name }}</h4>
+      <button class="btn btn-light next-month" value="{{ next_month }}">
+        <i class="bi bi-chevron-right"></i>
+      </button>
     </div>
+    
+    <div class="card-body">
+      <div class="calendar-grid">
+        <div class="row weekdays text-center mb-2">
+          {% for day in weekdays %}
+            <div class="col p-2"><strong>{{ day }}</strong></div>
+          {% endfor %}
+        </div>
+        
+        {% for week in weeks %}
+        <div class="row week">
+          {% for day in week %}
+            <div class="col p-2 day-cell text-center 
+                        {% if day.is_today %}bg-primary bg-opacity-10{% endif %}">
+              {% if day.in_month %}
+                <a href="{% url 'workout_day' %}?date={{ day.date_str }}"
+                   class="day-link d-block rounded-circle mx-auto 
+                          {% if day.has_workout %}bg-success text-white{% else %}text-dark{% endif %}"
+                   style="width: 36px; height: 36px; line-height: 36px;">
+                  {{ day.day_num }}
+                </a>
+              {% else %}
+                <span class="d-block text-muted">―</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="{% static 'js/calendar.js' %}"></script>
 {% endblock %}

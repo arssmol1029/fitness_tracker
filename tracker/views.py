@@ -3,18 +3,42 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from . import forms
 from django.contrib.auth.decorators import login_required
-from .models import Workout, Exercise, WorkoutExercises, ExerciseSet
-from django.http import JsonResponse
+from .models import Workout, Exercise, WorkoutExercise, ExerciseSet
+from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
 from django.urls import reverse
-from django.db.models import Q
+from django.db.models import Q, Prefetch, Count
 import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.utils import timezone
+from .services import WorkoutCalendar
+from django.core.exceptions import ValidationError
+from datetime import datetime
 
 
 @login_required
 def mainPage(request):
+    try:
+        year = int(request.GET.get('year', timezone.now().year))
+        month = int(request.GET.get('month', timezone.now().month))
+        
+        if not (1 <= month <= 12):
+            raise ValidationError("Некорректный месяц")
+        if year < 2000 or year > 2100:
+            raise ValidationError("Некорректный год")
+            
+    except:
+        year, month = timezone.now().year, timezone.now().month
+
+    calendar_data = WorkoutCalendar.get_month_data(request.user, year=year, month=month)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse(calendar_data)
+
+    return render(request, 'tracker/main-page.html', calendar_data)
+
+    '''
     global_workouts = Workout.objects.filter(is_custom = False)
     custom_workouts = Workout.objects.filter(is_custom = True, user = request.user)
 
@@ -26,7 +50,7 @@ def mainPage(request):
             'custom_workouts': custom_workouts,
         },
     )
-
+    '''
 
 
 
@@ -77,41 +101,85 @@ def myLogout(request):
 @login_required
 def workoutCreateView(request): 
     if request.method == 'POST':
-        form = forms.WorkoutForm(request.POST)
-        if form.is_valid():
-            is_template_data = request.POST.get('is_template', 'false') == 'true'
-            workout = form.save(commit=False)
-            workout.user = request.user
-            workout.is_template = is_template_data
-            workout.save()
-
-            exercises_data = json.loads(request.POST.get('exercises', '[]'))
-            
-            for ex in exercises_data:
-                workout_exercise = WorkoutExercises.objects.create(
-                    workout_id=workout.id,
-                    exercise_id=ex['exercise_id'],
-                )
-                sets=ex['sets']
-                number = 1
-                for set in sets:
-                    ExerciseSet.objects.create(
-                        workout_exercise_id=workout_exercise.id,
-                        set_number=number,
-                        reps=set['reps'],
-                        weight=set.get('weight'),
-                    )
-                    number += 1
-
-
-            return JsonResponse({'status': 'ok'})
-        
-        return JsonResponse({'status': 'error', 'redirect_url': reverse('error_page')})
-     
+        is_template_data = request.POST.get('is_template', 'false') == 'true'
+        return workoutSave(request, is_template=is_template_data)
     else:
-        form = forms.WorkoutForm()
+        try:
+            date_str = request.GET.get('date', timezone.now().year)
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()    
+        except:
+            date = timezone.now().date()
+        form = forms.WorkoutForm(initial={'date': date})
 
-    return render(request, 'tracker/workouts/workout.html', {'form': form})
+    return render(request, 'tracker/workouts/workout.html', {'form': form, 'edit_mode': True})
+
+
+
+@login_required
+def workoutEditView(request, pk):
+    try:
+        workout = Workout.objects.prefetch_related(
+            Prefetch(
+                'workoutexercise_set',
+                queryset=WorkoutExercise.objects.order_by('order').select_related('exercise').prefetch_related(
+                    Prefetch(
+                        'exercise_sets',
+                        queryset=ExerciseSet.objects.order_by('order'),
+                        to_attr='ordered_sets'
+                    )
+                ),
+                to_attr='workout_exercises'
+            )
+        ).get(id=pk)
+    except Workout.DoesNotExist:
+        raise Http404("Тренировка не найдена")
+    if (workout.user != request.user):
+        raise Http404("Тренировка создана другим пользователем")
+    if request.method == 'GET':
+        form = forms.WorkoutForm(instance=workout)
+        return render(request, 'tracker/workouts/workout.html',
+                {'form': form, 'workout': workout, 'edit_mode': False})
+    else:
+        is_template_data = request.POST.get('is_template', 'false') == 'true'
+        if is_template_data == workout.is_template:
+            WorkoutExercise.objects.filter(workout_id=workout.id).delete()
+            return workoutSave(request, workout=workout, is_template=is_template_data)
+        else:
+            return workoutSave(request, is_template=is_template_data)
+
+
+
+@login_required
+def workoutSave(request, workout=None, is_template=False):
+    form = forms.WorkoutForm(request.POST, instance=workout)
+    if form.is_valid():
+        workout = form.save(commit=False)
+        workout.user = request.user
+        workout.is_template = is_template
+        workout.save()
+
+        exercises_data = json.loads(request.POST.get('exercises', '[]'))
+        
+        for i, ex in enumerate(exercises_data):
+            workout_exercise = WorkoutExercise.objects.create(
+                workout_id=workout.id,
+                exercise_id=ex['exercise_id'],
+                order=i,
+            )
+            sets=ex['sets']
+            for j, set in enumerate(sets):
+                ExerciseSet.objects.create(
+                    workout_exercise_id=workout_exercise.id,
+                    order=j,
+                    reps=set['reps'],
+                    weight=set.get('weight'),
+                )
+
+
+        return JsonResponse({'status': 'ok'})
+    
+    return JsonResponse({'status': 'error', 'redirect_url': 'error'})
+
 
 
 @api_view(['GET'])
@@ -121,6 +189,26 @@ def exerciseSearch(request):
     results = [{'id': exercise.id, 'text': exercise.name, 'is_own_weight': exercise.is_own_weight} 
                for exercise in exercises]
     return Response({'results': results})
+
+
+
+@login_required
+def dayView(request):
+    try:
+        date_str = request.GET.get('date', timezone.now().year)
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()    
+    except:
+        date = timezone.now().date()
+
+    print(date.strftime('%Y-%m-%d'))
+    workouts = Workout.objects.filter(user=request.user, date=date, is_template=False).annotate(
+        exercise_count=Count('exercises')
+    )
+    return render(request, 'tracker/workouts/day.html', {
+        'date': date,
+        'date_str': date.strftime('%Y-%m-%d'),
+        'workouts': workouts
+    })
 
 
 
@@ -173,8 +261,8 @@ def deleteTemplate(request, workout_id):
             'message': 'объект не найден',
             'redirect_url': path,
         })
-      
 
 
-def errorPage(request):
-    return render(request, 'tracker/error-page.html')
+def customErrorView(request, exception):
+    error_message = str(exception) if exception else "Извините, запрошенная страница не существует."
+    return render(request, '404.html', {'error_message': error_message}, status=404)

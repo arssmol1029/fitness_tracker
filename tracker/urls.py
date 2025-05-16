@@ -8,10 +8,10 @@ urlpatterns = [
 
     path('', views.mainPage, name='main_page'),
 
-    path('exercise/search/', views.exerciseSearch, name='exercise_search'),
+    path('exercises/search/', views.exerciseSearch, name='exercise_search'),
 
     path('workouts/new/', views.workoutCreateView, name='workout_new'),
+    path('workouts/edit/<int:pk>', views.workoutEditView, name='workout_edit'),
+    path('workouts/day', views.dayView, name='workout_day'),
     path('workouts/template-delete/<int:workout_id>/', views.deleteTemplate, name='template_delete'),
-
-    path('error404/', views.errorPage, name='error_page'),
 ]

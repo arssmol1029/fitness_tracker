@@ -36,29 +36,34 @@ class Workout(models.Model):
     )
     name = models.CharField(max_length=100, default='тренировка')
     date = models.DateField(null=True, blank=True)
-    is_template = models.BooleanField(default=False)
+    is_template = models.BooleanField(default=False, db_index=True)
     is_custom = models.BooleanField(default=True)
     exercises = models.ManyToManyField(
         Exercise,
         blank=True,
-        through='tracker.WorkoutExercises',
+        through='tracker.WorkoutExercise',
         through_fields=('workout', 'exercise'),
+        related_name='workouts',
     )
+
+    class Meta:
+        ordering = ['-date']
 
     def __str__(self):
         return self.name
 
-class WorkoutExercises(models.Model):
+class WorkoutExercise(models.Model):
     workout = models.ForeignKey(Workout, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
 
 class ExerciseSet(models.Model):
     workout_exercise = models.ForeignKey(
-        WorkoutExercises,
+        WorkoutExercise,
         on_delete=models.CASCADE,
         related_name='exercise_sets',
     )
-    set_number = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField()
     reps = models.PositiveIntegerField()
     weight = models.FloatField(null=True, blank=True)
 

@@ -108,12 +108,18 @@ class LoginForm(AuthenticationForm):
 class WorkoutForm(forms.ModelForm):
     name = forms.CharField(
         label='Название',
+        widget=forms.TextInput(attrs={
+            'class': 'edit-enabled',
+        }),
         max_length=100,
     )
 
     date = forms.DateField(
         label='Дата',
-        widget=forms.DateInput(attrs={'type': 'date'}),  # Активирует HTML5-календарь
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'edit-enabled',
+        }),
         initial=date.today(),
     )
 
