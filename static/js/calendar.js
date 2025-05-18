@@ -17,14 +17,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(response => response.json())
-        .then(data => updateCalendar(data))
-        .finally(() => {
-            button.disabled = false;
-            button.innerHTML = button.classList.contains('prev-month') 
-                ? '<i class="bi bi-chevron-left"></i>' 
-                : '<i class="bi bi-chevron-right"></i>';
-        });
+            .then(response => response.json())
+            .then(data => updateCalendar(data))
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = button.classList.contains('prev-month') 
+                    ? '<i class="bi bi-chevron-left"></i>' 
+                    : '<i class="bi bi-chevron-right"></i>';
+            });
     }
 
     function updateCalendar(data) {

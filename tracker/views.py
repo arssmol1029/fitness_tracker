@@ -15,6 +15,7 @@ from django.utils import timezone
 from .services import WorkoutCalendar
 from django.core.exceptions import ValidationError
 from datetime import datetime
+from .serializers import WorkoutSerializer
 
 
 @login_required
@@ -154,40 +155,71 @@ def workoutSave(request, workout=None, is_template=False):
     form = forms.WorkoutForm(request.POST, instance=workout)
     if form.is_valid():
         workout = form.save(commit=False)
+        if Workout.objects.filter(
+            (Q(user=request.user) | Q(is_custom=False)) & Q(name=workout.name) & Q(is_template=is_template)
+        ).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Тренировка с таким названием уже существует!',
+                'redirect_url': 'error'
+            })
         workout.user = request.user
         workout.is_template = is_template
         workout.save()
 
         exercises_data = json.loads(request.POST.get('exercises', '[]'))
         
-        for i, ex in enumerate(exercises_data):
-            workout_exercise = WorkoutExercise.objects.create(
-                workout_id=workout.id,
-                exercise_id=ex['exercise_id'],
-                order=i,
-            )
-            sets=ex['sets']
-            for j, set in enumerate(sets):
-                ExerciseSet.objects.create(
-                    workout_exercise_id=workout_exercise.id,
-                    order=j,
-                    reps=set['reps'],
-                    weight=set.get('weight'),
+        try:
+            for i, ex in enumerate(exercises_data):
+                workout_exercise = WorkoutExercise.objects.create(
+                    workout_id=workout.id,
+                    exercise_id=ex['exercise_id'],
+                    order=i,
                 )
+                sets=ex['sets']
+                for j, set in enumerate(sets):
+                    ExerciseSet.objects.create(
+                        workout_exercise_id=workout_exercise.id,
+                        order=j,
+                        reps=set['reps'],
+                        weight=set.get('weight'),
+                    )
+        except:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Ошибка сохранения!',
+                'redirect_url': 'error'
+            })
 
 
         return JsonResponse({'status': 'ok'})
     
-    return JsonResponse({'status': 'error', 'redirect_url': 'error'})
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Ошибка сохранения!',
+        'redirect_url': 'error'
+    })
 
 
 
 @api_view(['GET'])
 def exerciseSearch(request):
-    term = request.data.get('term', '')
+    term = request.GET.get('term', '')
     exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term.capitalize()))
     results = [{'id': exercise.id, 'text': exercise.name, 'is_own_weight': exercise.is_own_weight} 
                for exercise in exercises]
+    return Response({'results': results})
+
+
+
+@api_view(['GET'])
+def templateSearch(request):
+    term = request.GET.get('term', '')
+    templates = Workout.objects.filter(
+        Q(is_template=True) & (Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term.capitalize())
+    )
+    results = [{'id': template.id, 'text': template.name} 
+               for template in templates]
     return Response({'results': results})
 
 
@@ -200,7 +232,6 @@ def dayView(request):
     except:
         date = timezone.now().date()
 
-    print(date.strftime('%Y-%m-%d'))
     workouts = Workout.objects.filter(user=request.user, date=date, is_template=False).annotate(
         exercise_count=Count('exercises')
     )
@@ -209,6 +240,44 @@ def dayView(request):
         'date_str': date.strftime('%Y-%m-%d'),
         'workouts': workouts
     })
+
+
+
+@api_view(['GET'])
+def templateLoad(request, pk):
+    try:
+        workout = Workout.objects.prefetch_related(
+            Prefetch(
+                'workoutexercise_set',
+                queryset=WorkoutExercise.objects.order_by('order').select_related('exercise').prefetch_related(
+                    Prefetch(
+                        'exercise_sets',
+                        queryset=ExerciseSet.objects.order_by('order'),
+                        to_attr='ordered_sets'
+                    )
+                ),
+                to_attr='workout_exercises'
+            )
+        ).get(id=pk)
+    except Workout.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Шаблон не существует'})
+    if (workout.user != request.user):
+        return JsonResponse({'status': 'error', 'message': 'Шаблон создан другим пользователем'})
+    if (workout.is_template == False):
+        return JsonResponse({'status': 'error', 'message': 'Объект не ялвяется шаблоном'})
+    
+    serializer = WorkoutSerializer(workout)
+    return JsonResponse({'status': 'ok', 'data':serializer.data})
+
+
+
+def workoutDelete(request, pk):
+    try:
+        workout = Workout.objects.get(id=pk)
+        workout.delete()
+        return redirect('main_page')
+    except Workout.DoesNotExist:
+        return redirect('main_page')
 
 
 

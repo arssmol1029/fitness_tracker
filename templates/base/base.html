@@ -88,9 +88,11 @@
 
     <script>
         window.URLS = {
-            exerciseSearch: "{% url 'exercise_search' %}",
             mainPage: "{% url 'main_page' %}",
-            workoutDay: "{% url 'workout_day' %}"
+            workoutDay: "{% url 'workout_day' %}",
+            exerciseSearch: "{% url 'exercise_search' %}",
+            templateSearch: "{% url 'template_search' %}",
+            templateLoad: "{% url 'template_load' pk=0 %}".replace('/0', '')
         };
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

@@ -2,14 +2,16 @@ import { getCSRFToken } from './functions.js';
 
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('workout-form');
-    const container = document.getElementById('exercises-container');
+    const exercisesContainer = document.getElementById('exercises-container');
+
+    const pageDate = form.querySelector('#workout-form input[name="date"]').value;
 
     const checkNew = document.getElementById('is-new');
     const isNew = (JSON.parse(checkNew.value.toLowerCase()));
 
     const checkEditMode = document.getElementById('edit-mode');
     let isEditMode = !(JSON.parse(checkEditMode.value.toLowerCase()));
-    let sortable = new Sortable(container, {
+    let sortable = new Sortable(exercisesContainer, {
         animation: 150,
         handle: '.card-body',
         disabled: !isEditMode,
@@ -33,6 +35,106 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorModal = new bootstrap.Modal(errorModalEl);
     const cancelModal = new bootstrap.Modal(cancelModalEl);
 
+    if (isNew) {
+        const templateSelect = document.getElementById('template-select');
+        $(templateSelect).select2({
+            ajax: {
+                url: window.URLS.templateSearch,
+                dataType: 'json',
+                processResults: function(data) {
+                    return {
+                        results: data.results.map(item => {
+                            return {
+                                id: item.id,
+                                text: item.text
+                            };
+                        })
+                    };
+                }
+            },
+            templateResult: function(item) {
+                return item.text;
+            },
+            templateSelection: function(item) {
+                return item.text;
+            }
+        });
+        $(templateSelect).on('change.select2', function() {
+            if (!$(this).val()) {
+                fillWorkoutForm(null);
+                return;
+            }
+            const selectedData = $(this).select2('data')[0];
+            const templateId = selectedData.id;
+            fetch(`${window.URLS.templateLoad}/${templateId}`)
+                .then(response => response.json())
+                .then(response => {
+                    if (response.status === 'error') {
+                        showErrorModal(response.message);
+                        return;
+                    }
+                    const data = response.data;
+                    fillWorkoutForm(data);
+                });
+        });
+
+        const templateSelectReset = document.getElementById('reset-template');
+        templateSelectReset.onclick = () => {
+            $(templateSelect).val('').trigger('change');
+            fillWorkoutForm(null);
+        };
+    }
+
+    function fillWorkoutForm(data) {
+        form.querySelector('#workout-form input[name="name"]').value = data?.name || '';
+        form.querySelector('#workout-form input[name="date"]').value = data?.date || pageDate;
+        
+        exercisesContainer.innerHTML = '';
+        
+        if (!data || !data.workout_exercises) {
+            return;
+        }
+        
+        data.workout_exercises.forEach((exercise, index) => {
+            const exerciseTemplate = document.getElementById('exercise-template');
+            const newExercise = exerciseTemplate.cloneNode(true);
+            newExercise.classList.remove('d-none');
+            
+            const exerciseSelect = newExercise.querySelector('.exercise-select');
+            exerciseSelect.innerHTML = `<option value="${exercise.exercise_id}" selected>${exercise.exercise_name}</option>`;
+            
+            const setsContainer = newExercise.querySelector('.sets-container');
+            setsContainer.innerHTML = '';
+            
+            exercise.ordered_sets.forEach((set, setIndex) => {
+                const setTemplate = document.getElementById('set-template');
+                const newSet = setTemplate.cloneNode(true);
+                newSet.classList.remove('d-none');
+                
+                newSet.querySelector('.reps-input').value = set.reps;
+
+                newSet.querySelector('.weight-input').value = set.weight || '';
+                newSet.querySelector('.weight-input').parentElement.hidden = exercise.is_own_weight;
+                newSet.querySelector('.weight-input').required = !exercise.is_own_weight;
+                
+                newSet.querySelector('.remove-set').addEventListener('click', function() {
+                    newSet.remove();
+                });
+                
+                setsContainer.appendChild(newSet);
+            });
+            
+            newExercise.querySelector('.remove-exercise').addEventListener('click', function() {
+                newExercise.remove();  
+            });
+            
+            newExercise.querySelector('.add-set').addEventListener('click', function() {
+                addNewSet(setsContainer);
+            });
+            
+            exercisesContainer.appendChild(newExercise);
+        });
+    }
 
     function changeEditMode() {
         if (isEditMode) {
@@ -114,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         editBtn.addEventListener('click', changeEditMode);
     }
 
-    async function selectCustom(card) {
+    async function exerciseSelect(card) {
         const select = card.querySelector('.exercise-select');
         $(select).select2({
             ajax: {
@@ -141,16 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return item.text;
             }
         });
-
-        $(select).on('change.select2', function() {
+        $(select).on('change', function() {
             const selectedData = $(this).select2('data')[0];
             
-            if (selectedData.is_own_weight) {
-                $(card).find('.weight-input').val('').parent().hide();
-                
-            } else {
-                $(card).find('.weight-input').parent().show();
-            }
+            inputs = card.querySelectorAll('.weight-input');
+            inputs.forEach((input) => {
+                input.parentElement.hidden = selectedData.is_own_weight;
+                input.required = !selectedData.is_own_weight;
+            });
         });
     };
 
@@ -163,13 +263,8 @@ document.addEventListener('DOMContentLoaded', function() {
         set.classList.remove('d-none');
         set.removeAttribute('id');
         
-        if (selectedData.is_own_weight) {
-            set.querySelector('.weight-input').parentElement.hidden = true;
-            set.querySelector('.weight-input').required = false;
-        } else {
-            set.querySelector('.weight-input').parentElement.hidden = false;
-            set.querySelector('.weight-input').required = true;
-        }
+        set.querySelector('.weight-input').parentElement.hidden = selectedData.is_own_weight;
+        set.querySelector('.weight-input').required = !selectedData.is_own_weight;
 
         const setsContainer = card.querySelector('.sets-container');
         
@@ -182,10 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const cards = document.querySelectorAll('.card:not(.d-none)');
     cards.forEach((card) => {
-        selectCustom(card);
+        exerciseSelect(card);
 
         card.querySelector('.remove-exercise').addEventListener('click', function() {
-            container.removeChild(card);
+            exercisesContainer.removeChild(card);
         });
 
         const setsContainer = card.querySelector('.sets-container');
@@ -205,13 +300,13 @@ document.addEventListener('DOMContentLoaded', function() {
         exCard.classList.remove('d-none');
         exCard.removeAttribute('id');
         
-        selectCustom(exCard);
+        exerciseSelect(exCard);
 
         exCard.querySelector('.remove-exercise').addEventListener('click', function() {
-            container.removeChild(exCard);
+            exercisesContainer.removeChild(exCard);
         });
 
-        container.appendChild(exCard);
+        exercisesContainer.appendChild(exCard);
 
         const addSetBtn = exCard.querySelector('.add-set');
         addSetBtn.addEventListener('click', () => addSet(exCard));
@@ -224,7 +319,11 @@ document.addEventListener('DOMContentLoaded', function() {
             await saveWorkoutForm(true);
             showSuccessModal(true);
         } catch(error) {
-            showErrorModal();
+            if (error.message) {
+                showErrorModal(error.message);
+            } else {
+                showErrorModal('Ошибка сохранения!');
+            }
             hasEmptyRequired();
         }       
     });
@@ -235,7 +334,11 @@ document.addEventListener('DOMContentLoaded', function() {
             await saveWorkoutForm(false);
             showSuccessModal(false);
         } catch(error) {
-            showErrorModal();
+            if (error.message) {
+                showErrorModal(error.message);
+            } else {
+                showErrorModal('Ошибка сохранения!');
+            }
             hasEmptyRequired();
         }       
     });
@@ -268,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function getExercises() {
         const exercises = [];
-        const cards = container.querySelectorAll('.card:not(.d-none)');
+        const cards = exercisesContainer.querySelectorAll('.card:not(.d-none)');
         
         cards.forEach((card) => {
             const select = card.querySelector('.exercise-select');
@@ -348,9 +451,11 @@ document.addEventListener('DOMContentLoaded', function() {
         successModal.show();
     };
     
-    function showErrorModal() {
+    function showErrorModal(message = 'Ошибка!') {
+        const errorMessage = errorModalEl.querySelector('.error-message');
+        errorMessage.textContent = message;
+
         const errorButton = errorModalEl.querySelector('.again-btn');
-  
         errorButton.onclick = () => location.reload();
         errorModal.show();
     };
@@ -365,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 await saveWorkoutForm(false);
                 showSuccessModal(false);
             } catch(error) {
-                showErrorModal();
+                showErrorModal('Ошибка сохранения!');
                 hasEmptyRequired();
             }
         };

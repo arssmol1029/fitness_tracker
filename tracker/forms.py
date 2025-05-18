@@ -7,6 +7,7 @@ from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from .models import Profile, Workout, Exercise, ExerciseSet
 from django.db.models import Q
 from datetime import date
+from django.core.exceptions import ValidationError
 
 class SignUpForm(UserCreationForm):
     username = forms.CharField(
