@@ -38,6 +38,7 @@ class WorkoutCalendar:
             'weekdays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             'prev_month': (date(year, month, 1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m'),
             'next_month': (date(year, month, 28) + timedelta(days=4)).replace(day=1).strftime('%Y-%m'),
+            'today': timezone.now().date().strftime('%Y-%m-%d')
         }
         
         return calendar_data

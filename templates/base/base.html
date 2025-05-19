@@ -50,8 +50,9 @@
         <div class="offcanvas-body d-flex flex-column">
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link active" href="{% url 'main_page' %}">Главная</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Профиль</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Настройки</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'workout_list' %}">Тренировки</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'exercise_list' %}">Упражнения</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'profile_page' %}">Профиль</a></li>
             </ul>
             <div class="mt-auto pt-3 border-top">
                 <form method="post" action="{% url 'logout' %}">
@@ -89,17 +90,18 @@
     <script>
         window.URLS = {
             mainPage: "{% url 'main_page' %}",
-            workoutDay: "{% url 'workout_day' %}",
+            workoutDay: "{% url 'workout_day_list' %}",
             exerciseSearch: "{% url 'exercise_search' %}",
             templateSearch: "{% url 'template_search' %}",
-            templateLoad: "{% url 'template_load' pk=0 %}".replace('/0', '')
+            templateLoad: "{% url 'template_load' pk=0 %}".replace('/0', ''),
+            exerciseDelete: "{% url 'exercise_delete' pk=0 %}".replace('/0', ''),
+            exerciseCreate: "{% url 'exercise_create' %}"
         };
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="{% static 'js/functions.js' %}"></script>
-    <script type="module" src="{% static 'js/delete-object.js' %}"></script>
     {% block extra_js %}{% endblock %}
     
 </body>

@@ -15,11 +15,18 @@ from django.utils import timezone
 from .services import WorkoutCalendar
 from django.core.exceptions import ValidationError
 from datetime import datetime
-from .serializers import WorkoutSerializer
+from .serializers import WorkoutSerializer, ExerciseSerializer
 
 
 @login_required
 def mainPage(request):
+    date = timezone.now().date()
+
+    workouts = Workout.objects.filter(user=request.user, date=date, is_template=False).annotate(
+        exercise_count=Count('exercises')
+    )
+
+
     try:
         year = int(request.GET.get('year', timezone.now().year))
         month = int(request.GET.get('month', timezone.now().month))
@@ -37,7 +44,11 @@ def mainPage(request):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse(calendar_data)
 
-    return render(request, 'tracker/main-page.html', calendar_data)
+
+    return render(request, 'tracker/main-page.html', {
+        'workouts': workouts,
+        'calendar': calendar_data
+    })
 
     '''
     global_workouts = Workout.objects.filter(is_custom = False)
@@ -100,10 +111,53 @@ def myLogout(request):
 
 
 @login_required
+@api_view(['GET'])
+def profilePage(request):
+    user = request.user
+    return render(request, 'base/profile.html', {'user': user})
+
+
+
+@login_required
+@api_view(['GET'])
+def workoutListView(request):
+    template_view = request.GET.get('templates', '').lower() == 'true'
+
+    workouts = Workout.objects.filter(
+        Q(user=request.user) | Q(is_custom=False)
+    ).annotate(exercise_count=Count('exercises'))
+
+    return render(request, 'tracker/workouts/list.html', {
+        'workouts': workouts,
+        'template_view': template_view
+    })
+
+
+
+@login_required
+def workoutDayListView(request):
+    try:
+        date_str = request.GET.get('date', timezone.now().year)
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()    
+    except:
+        date = timezone.now().date()
+
+    workouts = Workout.objects.filter(user=request.user, date=date, is_template=False).annotate(
+        exercise_count=Count('exercises')
+    )
+    return render(request, 'tracker/workouts/day-list.html', {
+        'date': date,
+        'date_str': date.strftime('%Y-%m-%d'),
+        'workouts': workouts
+    })
+
+
+
+@login_required
 def workoutCreateView(request): 
     if request.method == 'POST':
         is_template_data = request.POST.get('is_template', 'false') == 'true'
-        return workoutSave(request, is_template=is_template_data)
+        return workoutSave(request, is_template=is_template_data, is_new=True)
     else:
         try:
             date_str = request.GET.get('date', timezone.now().year)
@@ -144,18 +198,19 @@ def workoutEditView(request, pk):
         is_template_data = request.POST.get('is_template', 'false') == 'true'
         if is_template_data == workout.is_template:
             WorkoutExercise.objects.filter(workout_id=workout.id).delete()
-            return workoutSave(request, workout=workout, is_template=is_template_data)
+            return workoutSave(request, workout=workout, is_template=is_template_data, is_new=False)
         else:
-            return workoutSave(request, is_template=is_template_data)
+            return workoutSave(request, is_template=is_template_data, is_new=True)
 
 
 
 @login_required
-def workoutSave(request, workout=None, is_template=False):
+@api_view(['POST'])
+def workoutSave(request, workout=None, is_template=False, is_new=True):
     form = forms.WorkoutForm(request.POST, instance=workout)
     if form.is_valid():
         workout = form.save(commit=False)
-        if Workout.objects.filter(
+        if is_new and Workout.objects.filter(
             (Q(user=request.user) | Q(is_custom=False)) & Q(name=workout.name) & Q(is_template=is_template)
         ).exists():
             return JsonResponse({
@@ -203,16 +258,6 @@ def workoutSave(request, workout=None, is_template=False):
 
 
 @api_view(['GET'])
-def exerciseSearch(request):
-    term = request.GET.get('term', '')
-    exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term.capitalize()))
-    results = [{'id': exercise.id, 'text': exercise.name, 'is_own_weight': exercise.is_own_weight} 
-               for exercise in exercises]
-    return Response({'results': results})
-
-
-
-@api_view(['GET'])
 def templateSearch(request):
     term = request.GET.get('term', '')
     templates = Workout.objects.filter(
@@ -221,25 +266,6 @@ def templateSearch(request):
     results = [{'id': template.id, 'text': template.name} 
                for template in templates]
     return Response({'results': results})
-
-
-
-@login_required
-def dayView(request):
-    try:
-        date_str = request.GET.get('date', timezone.now().year)
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()    
-    except:
-        date = timezone.now().date()
-
-    workouts = Workout.objects.filter(user=request.user, date=date, is_template=False).annotate(
-        exercise_count=Count('exercises')
-    )
-    return render(request, 'tracker/workouts/day.html', {
-        'date': date,
-        'date_str': date.strftime('%Y-%m-%d'),
-        'workouts': workouts
-    })
 
 
 
@@ -260,76 +286,96 @@ def templateLoad(request, pk):
             )
         ).get(id=pk)
     except Workout.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Шаблон не существует'})
+        return JsonResponse({'status': 'error', 'message': 'Шаблон не существует!'})
     if (workout.user != request.user):
-        return JsonResponse({'status': 'error', 'message': 'Шаблон создан другим пользователем'})
+        return JsonResponse({'status': 'error', 'message': 'Шаблон создан другим пользователем!'})
     if (workout.is_template == False):
-        return JsonResponse({'status': 'error', 'message': 'Объект не ялвяется шаблоном'})
+        return JsonResponse({'status': 'error', 'message': 'Объект не ялвяется шаблоном!'})
     
     serializer = WorkoutSerializer(workout)
     return JsonResponse({'status': 'ok', 'data':serializer.data})
 
 
 
+@login_required
+@api_view(['POST', 'DELETE'])
 def workoutDelete(request, pk):
     try:
         workout = Workout.objects.get(id=pk)
         workout.delete()
-        return redirect('main_page')
-    except Workout.DoesNotExist:
-        return redirect('main_page')
-
-
-
-'''
-def loadTemplate(request, workout_id):
-    try:
-        template = Workout.objects.get(id=workout_id, is_template=True)
-        exercises = []
-        for te in template.workoutexercises_set.all():
-            exercises.append({
-                'exercise_id': te.exercise.id,
-                'name': te.exercise.name,
-            })
-        return JsonResponse({
-            'status': 'ok',
-            'title': template.title,
-            'exercises': exercises
-        })
-    except Workout.DoesNotExist:
-        path = reverse('error_page')
-        return JsonResponse({
-            'status': 'error',
-            'code': 'not_exist',
-            'message': 'шаблон не найден',
-            'redirect_url': path,
-        })
-'''
-
-
-
-@require_POST
-def deleteTemplate(request, workout_id):
-    if not request.user.is_authenticated:
-        path = reverse('login')
-        return JsonResponse({
-            'status': 'error',
-            'code': 'no_auth',
-            'message': 'пользователь не авторизован',
-            'redirect_url': path,
-        })
-    try:
-        workout = Workout.objects.get(id=workout_id)
-        workout.delete()
         return JsonResponse({'status': 'ok'})
     except Workout.DoesNotExist:
-        path = reverse('error_page')
+        return JsonResponse({'status': 'error',  'message': 'Объект не найден!'})
+
+
+
+@login_required
+@api_view(['POST'])
+def exerciseCreate(request):
+    name = request.POST.get('name')
+    is_own_weight = request.POST.get('is_own_weight') == 'true'
+    
+    if Exercise.objects.filter(
+            Q(name=name) & (Q(user=request.user) | Q(is_custom=False)) & Q(is_own_weight=is_own_weight)).exists():
         return JsonResponse({
             'status': 'error',
-            'code': 'no_workout',
-            'message': 'объект не найден',
-            'redirect_url': path,
+            'message': 'Упражнение с данным названием уже существует!'
         })
+
+    print('meow')
+    print(name, is_own_weight)
+    print('meow')
+
+    exercise = Exercise.objects.create(
+        user=request.user,
+        name=name.capitalize(),
+        is_own_weight=is_own_weight,
+        is_custom=True
+    )
+    
+    serializer = ExerciseSerializer(exercise)
+
+    print(serializer.data)
+
+    return JsonResponse({
+        'status': 'ok',
+        'data': serializer.data
+    })
+
+
+
+@login_required
+@api_view(['GET'])
+def exerciseListView(request):
+    exercises = Exercise.objects.filter(Q(user=request.user) | Q(is_custom=False))
+
+    return render(request, 'tracker/exercises/list.html', {
+        'exercises': exercises
+    })
+
+
+
+@login_required
+@api_view(['POST', 'DELETE'])
+def exerciseDelete(request, pk):
+    try:
+        exercise = Exercise.objects.get(id=pk)
+        exercise.delete()
+        return JsonResponse({'status': 'ok'})
+    except Workout.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Объект не найден!'})
+
+
+
+@login_required
+@api_view(['GET'])
+def exerciseSearch(request):
+    term = request.GET.get('term', '')
+    exercises = Exercise.objects.filter((Q(is_custom=False) | Q(user=request.user)) & Q(name__icontains=term.capitalize()))
+    results = [{'id': exercise.id, 'text': exercise.name, 'is_own_weight': exercise.is_own_weight} 
+               for exercise in exercises]
+    return Response({'results': results})
+
 
 
 def customErrorView(request, exception):

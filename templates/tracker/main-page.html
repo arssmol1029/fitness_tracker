@@ -3,48 +3,111 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="container mt-4 float-start" style="max-width: 800px;">
-  <div class="card shadow">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <button class="btn btn-light prev-month" value="{{ prev_month }}">
-        <i class="bi bi-chevron-left"></i>
-      </button>
-      <h4 class="mb-0 month-title">{{ month_name }}</h4>
-      <button class="btn btn-light next-month" value="{{ next_month }}">
-        <i class="bi bi-chevron-right"></i>
-      </button>
+<div class="container mt-4 mb-4 float-start">
+    <div class="d-flex mb-4">
+        <h2>Тренировки сегодня</h2>
+        <a href="{% url 'workout_create' %}" class="ms-4">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus"></i> Добавить тренировку
+            </button>
+        </a>
     </div>
-    
-    <div class="card-body">
-      <div class="calendar-grid">
-        <div class="row weekdays text-center mb-2">
-          {% for day in weekdays %}
-            <div class="col p-2"><strong>{{ day }}</strong></div>
-          {% endfor %}
-        </div>
-        
-        {% for week in weeks %}
-        <div class="row week">
-          {% for day in week %}
-            <div class="col p-2 day-cell text-center 
-                        {% if day.is_today %}bg-primary bg-opacity-10{% endif %}">
-              {% if day.in_month %}
-                <a href="{% url 'workout_day' %}?date={{ day.date_str }}"
-                   class="day-link d-block rounded-circle mx-auto 
-                          {% if day.has_workout %}bg-success text-white{% else %}text-dark{% endif %}"
-                   style="width: 36px; height: 36px; line-height: 36px;">
-                  {{ day.day_num }}
-                </a>
-              {% else %}
-                <span class="d-block text-muted">―</span>
-              {% endif %}
+
+    {% if workouts %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for workout in workouts|slice:":3" %}
+        <div class="col workout-item">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ workout.name }}</h5>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        Количество упражнений: {{ workout.exercise_count }}
+                    </h6>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'workout_edit' pk=workout.id %}" class="btn btn-sm btn-outline-secondary me-2">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="#" 
+                            data-delete-url="{% url 'workout_delete' pk=workout.id %}" 
+                            data-parent-selector=".workout-item"
+                            class="btn btn-sm btn-outline-danger delete-btn">
+                                <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </div>
             </div>
-          {% endfor %}
         </div>
         {% endfor %}
-      </div>
     </div>
-  </div>
+
+    {% if workouts|length > 3 %}
+        <div class="text-start mt-3">
+            <a href="{% url 'workout_day_list' %}?date={{ calendar.today }}">
+                <button class="btn btn-outline-primary" id="show-workouts">
+                    Показать все ({{ workouts|length }})
+                </button>
+            </a>
+        </div>
+
+    {% endif %}
+
+    {% else %}
+        <div class="alert alert-info">
+            Сегодня тренировок не было.
+        </div>
+    {% endif %}
+</div>
+
+
+<div class="container mt-4 float-start" style="max-width: 800px;">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <button class="btn btn-light prev-month" value="{{ calendar.prev_month }}">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <h4 class="mb-0 month-title">{{ calendar.month_name }}</h4>
+          <button class="btn btn-light next-month" value="{{ calendar.next_month }}">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        
+        <div class="card-body">
+            <div class="calendar-grid">
+                  <div class="row weekdays text-center mb-2">
+                      {% for day in calendar.weekdays %}
+                          <div class="col p-2"><strong>{{ day }}</strong></div>
+                      {% endfor %}
+                  </div>
+                
+                  {% for week in calendar.weeks %}
+                      <div class="row week">
+                          {% for day in week %}
+                              <div class="col p-2 day-cell text-center {% if day.is_today %}bg-primary bg-opacity-10{% endif %}">
+                                  {% if day.in_month %}
+                                      <a href="{% url 'workout_day_list' %}?date={{ day.date_str }}"
+                                        class="day-link d-block rounded-circle mx-auto 
+                                                {% if day.has_workout %}bg-success text-white{% else %}text-dark{% endif %}"
+                                        style="width: 36px; height: 36px; line-height: 36px;">
+                                          {{ day.day_num }}
+                                      </a>
+                                  {% else %}
+                                      <span class="d-block text-muted">―</span>
+                                  {% endif %}
+                              </div>
+                          {% endfor %}
+                      </div>
+                  {% endfor %}
+              </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
