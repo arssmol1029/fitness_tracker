@@ -4,13 +4,13 @@
 
 ___
 
-+ [Установка локально](#установка-локально)
-+ [Структура проекта](#структура-проекта)
-+ [Технологии](#технологии)
-+ [Контакты](#контакты)
++ [Установка локально](#title1)
++ [Структура проекта](#title2)
++ [Технологии](#title3)
++ [Контакты](#title4)
 ___
 
-## **:computer:Установка локально**
+## <a id="title1"> **:computer: Установка локально**
 
 ### 1. Клонирование репозитория
 ```bash
@@ -59,7 +59,7 @@ python manage.py runserver
 
 ___
 
-## :file_folder:Структура проекта
+## <a id="title2"> :file_folder: Структура проекта
 
 ```text
 fitness_tracker/  
@@ -103,13 +103,13 @@ fitness_tracker/
 └── README.md
 ```
 
-## :shipit:Технологии
+## <a id="title3"> :shipit: Технологии
 
 + **Backend:** Python 3.12, Django 5.2, Django REST Framework
 + **Frontend:** HTML/CSS/JS, Bootstrap 5, JQuery
 + **Базы данных:** SQLite
 
-## :mailbox_with_mail:Контакты
+## <a id="title4"> :mailbox_with_mail: Контакты
 
 + **Автор:** arssmol1029
-+ **Telegram:** [@kepolb](t.me/kepolb) 
++ **Telegram:** [@kepolb](https://t.me/kepolb)
