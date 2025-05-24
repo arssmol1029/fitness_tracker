@@ -50,21 +50,6 @@ def mainPage(request):
         'calendar': calendar_data
     })
 
-    '''
-    global_workouts = Workout.objects.filter(is_custom = False)
-    custom_workouts = Workout.objects.filter(is_custom = True, user = request.user)
-
-    return render(
-        request,
-        'tracker/main-page.html',   
-        {
-            'global_workouts': global_workouts,
-            'custom_workouts': custom_workouts,
-        },
-    )
-    '''
-
-
 
 def signup(request):
     if request.user.is_authenticated:
@@ -166,7 +151,7 @@ def workoutCreateView(request):
             date = timezone.now().date()
         form = forms.WorkoutForm(initial={'date': date})
 
-    return render(request, 'tracker/workouts/workout.html', {'form': form, 'edit_mode': True})
+    return render(request, 'tracker/workouts/workout.html', {'form': form})
 
 
 
@@ -188,12 +173,12 @@ def workoutEditView(request, pk):
         ).get(id=pk)
     except Workout.DoesNotExist:
         raise Http404("Тренировка не найдена")
-    if (workout.user != request.user):
+    if (workout.user and workout.user != request.user):
         raise Http404("Тренировка создана другим пользователем")
     if request.method == 'GET':
         form = forms.WorkoutForm(instance=workout)
         return render(request, 'tracker/workouts/workout.html',
-                {'form': form, 'workout': workout, 'edit_mode': False})
+                {'form': form, 'workout': workout})
     else:
         is_template_data = request.POST.get('is_template', 'false') == 'true'
         if is_template_data == workout.is_template:
@@ -201,6 +186,33 @@ def workoutEditView(request, pk):
             return workoutSave(request, workout=workout, is_template=is_template_data, is_new=False)
         else:
             return workoutSave(request, is_template=is_template_data, is_new=True)
+
+
+
+@login_required
+@api_view(['GET'])
+def workoutNotChangeView(request, pk):
+    try:
+        workout = Workout.objects.prefetch_related(
+            Prefetch(
+                'workoutexercise_set',
+                queryset=WorkoutExercise.objects.order_by('order').select_related('exercise').prefetch_related(
+                    Prefetch(
+                        'exercise_sets',
+                        queryset=ExerciseSet.objects.order_by('order'),
+                        to_attr='ordered_sets'
+                    )
+                ),
+                to_attr='workout_exercises'
+            )
+        ).get(id=pk)
+    except Workout.DoesNotExist:
+        raise Http404("Тренировка не найдена")
+    if (workout.user and workout.user != request.user):
+        raise Http404("Тренировка создана другим пользователем")
+    form = forms.WorkoutForm(instance=workout, is_only_view=True)
+    return render(request, 'tracker/workouts/workout_only_view.html',
+            {'form': form, 'workout': workout})
 
 
 
@@ -286,8 +298,8 @@ def templateLoad(request, pk):
             )
         ).get(id=pk)
     except Workout.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Шаблон не существует!'})
-    if (workout.user != request.user):
+        return JsonResponse({'status': 'error', 'message': 'Объект не существует!'})
+    if (workout.user and workout.user != request.user):
         return JsonResponse({'status': 'error', 'message': 'Шаблон создан другим пользователем!'})
     if (workout.is_template == False):
         return JsonResponse({'status': 'error', 'message': 'Объект не ялвяется шаблоном!'})

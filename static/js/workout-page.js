@@ -9,21 +9,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkNew = document.getElementById('is-new');
     const isNew = (JSON.parse(checkNew.value.toLowerCase()));
 
-    const checkEditMode = document.getElementById('edit-mode');
-    let isEditMode = !(JSON.parse(checkEditMode.value.toLowerCase()));
-    let sortable = new Sortable(exercisesContainer, {
+    new Sortable(exercisesContainer, {
         animation: 150,
         handle: '.card-body',
-        disabled: !isEditMode,
         ghostClass: 'drag-ghost',
         chosenClass: 'drag-chosen',
         dragClass: 'drag-item',
     });
 
-    const editBtn = document.getElementById('edit-mode-on');
     const saveBtn = document.getElementById('save-workout');
     const saveTempBtn = document.getElementById('save-template');
-    const cancelBtn = document.getElementById('edit-mode-off');
     const addExBtn = document.getElementById('add-exercise');
 
     const successModalEl = document.getElementById('success-modal');
@@ -136,44 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             exercisesContainer.appendChild(exCard);
         });
-    }
-
-    function changeEditMode() {
-        if (isEditMode) {
-            if (hasEmptyRequired()) {
-                return;
-            }
-        }
-
-        isEditMode = !isEditMode;
-        checkEditMode.value = isEditMode.toString();
-        sortable.option("disabled", !isEditMode);
-
-        const hiddenEl = document.querySelectorAll('.edit-hidden');
-        hiddenEl.forEach((El) => {
-            El.hidden = isEditMode;
-        });
-
-        const displayedEl = document.querySelectorAll('.edit-displayed');
-        displayedEl.forEach((El) => {
-            El.hidden = !isEditMode;
-        });
-
-        const disabledEl = document.querySelectorAll('.edit-disabled');
-        disabledEl.forEach((El) => {
-            El.disabled = isEditMode;
-        });
-
-        const enabledEl = document.querySelectorAll('.edit-enabled');
-        enabledEl.forEach((El) => {
-            El.disabled = !isEditMode;
-        });
-    };
-
-    changeEditMode();
-
-    if (!isNew) {
-        editBtn.addEventListener('click', changeEditMode);
     }
 
     async function exerciseSelect(card) {
@@ -310,16 +267,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }       
     });
 
-    if (!isNew) {
-        cancelBtn.addEventListener('click', () => showCancelModal(false));
-    }
-
     closeBtn.addEventListener('click', function() {
-        if (isNew || isEditMode) {
-            showCancelModal(true);
-        } else {
-            window.location.href = window.URLS.mainPage;
-        }
+        showCancelModal(true);
     });
 
     //Блокировка отправки формы при submit

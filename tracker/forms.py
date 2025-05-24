@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Submit, Row, Column, HTML
+from crispy_forms.layout import Layout, Submit, Field, HTML
 from .models import Profile, Workout, Exercise, ExerciseSet
 from django.db.models import Q
 from datetime import date
@@ -133,9 +133,13 @@ class WorkoutForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
+        is_only_view = kwargs.pop('is_only_view', False)
         super().__init__(*args, **kwargs)
 
         self.helper = FormHelper()
+        if is_only_view:
+            self.fields['name'].disabled = True
+            self.fields['date'].disabled = True
     
     def save(self, commit = True, is_template = False):
         workout = super().save(commit=False)

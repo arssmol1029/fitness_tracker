@@ -20,6 +20,7 @@
                         data-delete-url="{% url 'exercise_delete' pk=exercise.id %}"
                         data-parent-selector=".list-group-item"
                         class="btn btn-sm btn-outline-danger delete-btn"
+                        {% if not exercise.is_custom %} hidden {% endif %}
                     >
                         <i class="bi bi-trash"></i>
                     </button>
