@@ -24,7 +24,7 @@ db.sqlite3
 .vscode/
 *.swp
 *.swo
-.DS_Store (для macOS)
+.DS_Store
 
 # 5. Статические файлы (если собираются автоматически)
 staticfiles/
