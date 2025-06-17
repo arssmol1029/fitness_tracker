@@ -1,115 +1,74 @@
 # Fitness Tracker
 
-Веб-приложение для составления тренировок
+Веб-приложение для планирования и отслеживания тренировочного процесса.
 
-___
+## Функциональность
 
-+ [Установка локально](#title1)
-+ [Структура проекта](#title2)
-+ [Технологии](#title3)
-+ [Контакты](#title4)
-___
+В проекте реализованы связанные модули:
 
-## <a id="title1"> **:computer: Установка локально**
+- **Календарь тренировок** — планирование тренировок по датам и контроль выполнения.
+- **Мои шаблоны** — создание и хранение шаблонов тренировок для повторного использования.
+- **Библиотека упражнений** — каталог упражнений для составления тренировочных планов.
 
-### 1. Клонирование репозитория
+## Запуск в Docker
+
+### Требования
+- Docker
+- Docker Compose
+
+### Быстрый старт
 ```bash
-git clone https://github.com/arssmol1029/fitness_tracker
-cd fitness_tracker
+# из корня проекта
+cp .env.example .env
+# при необходимости отредактируйте .env (минимум: SECRET_KEY)
+docker compose up --build
 ```
 
-### 2. Установка зависимостей
+Приложение будет доступно по адресу:  
+http://localhost:8000
+
+## Администрирование
+
+Админ-панель:  
+http://localhost:8000/admin/
+
+Создание суперпользователя:
 ```bash
-python -m venv venv
-source venv/bin/activate #Linux/Mac
-venv\Scripts\activate #Windows
-pip install -r requirements.txt
+docker compose exec web python manage.py createsuperuser
 ```
 
-### 3. Генерация ключа
+## Полезные команды
+
+Остановить контейнеры:
 ```bash
-python manage.py shell
->>> from django.core.management.utils import get_random_secret_key
->>> print(get_random_secret_key())
+docker compose down
 ```
 
-### 4. Настройка окружения
-Создайте файл .env в корне проекта на основе .env.example и заполните переменные:
-```
-SECRET_KEY=ваш-ключ-из-шага-3
-DEBUG=False
-```
-
-### 5. Запуск миграций
+Остановить и удалить данные SQLite (volume):
 ```bash
-python manage.py migrate
+docker compose down -v
 ```
 
-### 6. Создание суперпользователя (при необходимости)
+Выполнить миграции вручную:
 ```bash
-python manage.py createsuperuser
+docker compose exec web python manage.py migrate
 ```
 
-### 7. Запуск сервера
-```bash
-python manage.py runserver
-```
+## Переменные окружения (.env)
 
-Сервер будет работать на http://127.0.0.1:8000
+Минимально рекомендуется задать:
 
-___
+- `SECRET_KEY` — секретный ключ Django
+- `DEBUG` — `1/0` или `true/false`
+- `ALLOWED_HOSTS` — список хостов через запятую (например: `localhost,127.0.0.1,0.0.0.0`)
 
-## <a id="title2"> :file_folder: Структура проекта
-
-```text
-fitness_tracker/  
-├── fitness_tracker/            # Настройки, утилиты
-│   ├── __pycache__ 
-│   ├── __init__.py  
-│   ├── asgi.py  
-│   ├── settings.py             # Настройки Django  
-│   ├── urls.py                 # Главные URL-адреса  
-│   └── wsgi.py  
-│  
-├── static/                     # Статические файлы  
-│   ├── css/  
-│   └── js/  
-│  
-├── templates/                  # HTML шаблоны  
-│   ├── base/
-|   |   ├──404.html             # Страница ошибки
-|   |   ├──base.html            # Базовый шаблон страницы (структура, шапка и тд)
-|   |   └──profile.html         # Страница профиля
-|   ├── registration/
-|   └── tracker/                # Шаблоны страниц приложения
-│  
-├── tracker/                    # Приложение  
-│   ├── __pycache__ 
-│   ├── migrations/ 
-│   ├── admin.py
-│   ├── apps.py          
-│   ├── forms.py                
-│   ├── models.py
-│   ├── serializers.py         # Сериализаторы (получение объекта в виде словаря)
-│   ├── services.py            # Функции для views
-│   ├── tests.py
-│   ├── urls.py                # URL-адреса приложения
-│   └── views.py 
-│  
-├── .env                        # Локальные переменные 
-├── .gitignore                  # Игнорируемые файлы  
-├── manage.py                   # Скрипт управления Django  
-├── requirements.txt            # Зависимости 
-└── README.md
-```
-
-## <a id="title3"> :shipit: Технологии
+## Технологии
 
 + **Backend:** Python 3.12, Django 5.2, Django REST Framework
 + **Frontend:** HTML/CSS/JS, Bootstrap 5, JQuery
 + **Базы данных:** SQLite
 
-## <a id="title4"> :mailbox_with_mail: Контакты
+## Контакты
 
 + **Автор:** arssmol1029
 + **Telegram:** [@kepolb](https://t.me/kepolb)
