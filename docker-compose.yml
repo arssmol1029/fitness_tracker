@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: /data/db.sqlite3
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+    volumes:
+      - .:/app
+      - db_data:/data
+
+volumes:
+  db_data:
