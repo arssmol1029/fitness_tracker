@@ -1,5 +1,6 @@
 crispy-bootstrap5==2025.4
 Django==5.2
+psycopg2-binary==2.9.9
 django-crispy-forms==2.4
 djangorestframework==3.16.0
 django-nested-admin>=4.0

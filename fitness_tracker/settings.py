@@ -85,6 +85,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
+# Для корректной работы collectstatic (удобно в Docker/CI)
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
@@ -93,12 +94,28 @@ WSGI_APPLICATION = 'fitness_tracker.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DATABASE_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.getenv('DATABASE_URL', 'db.sqlite3'),
+DATABASE_ENGINE = os.getenv('DATABASE_ENGINE', '').strip()
+
+if DATABASE_ENGINE == 'django.db.backends.postgresql' or os.getenv('POSTGRES_HOST'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'fitness_tracker'),
+            'USER': os.getenv('POSTGRES_USER', 'fitness_tracker'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'fitness_tracker'),
+            'HOST': os.getenv('POSTGRES_HOST', 'db'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        }
     }
-}
+else:
+    # Fallback для разработки без PostgreSQL
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DATABASE_ENGINE', 'django.db.backends.sqlite3'),
+            'NAME': os.getenv('DATABASE_URL', 'db.sqlite3'),
+        }
+    }
+
 
 
 # Password validation
