@@ -63,7 +63,7 @@ docker compose exec web python manage.py migrate
 
 ## Технологии
 
-+ **Backend:** Python 3.12, Django 5.2, Django REST Framework
++ **Backend:** Python 3.12, Django 5.2
 + **Frontend:** HTML/CSS/JS, Bootstrap 5, JQuery
 + **Базы данных:** PostgreSQL
 
