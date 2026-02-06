@@ -18,9 +18,7 @@
 
 ### Быстрый старт
 ```bash
-# из корня проекта
 cp .env.example .env
-# при необходимости отредактируйте .env (минимум: SECRET_KEY)
 docker compose up --build
 ```
 
@@ -60,13 +58,14 @@ docker compose exec web python manage.py migrate
 
 - `SECRET_KEY` — секретный ключ Django
 - `DEBUG` — `1/0` или `true/false`
-- `ALLOWED_HOSTS` — список хостов через запятую (например: `localhost,127.0.0.1,0.0.0.0`)
+- `ALLOWED_HOSTS` — список хостов через запятую
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — параметры базы данных (значения по умолчанию есть в `.env.example`)
 
 ## Технологии
 
 + **Backend:** Python 3.12, Django 5.2, Django REST Framework
 + **Frontend:** HTML/CSS/JS, Bootstrap 5, JQuery
-+ **Базы данных:** SQLite
++ **Базы данных:** PostgreSQL
 
 ## Контакты
 
